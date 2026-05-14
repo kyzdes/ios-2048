@@ -1,0 +1,1624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>2048 Mac — native, notarized, ad-free 2048 for macOS</title>
+<meta name="description" content="Play 2048 on your Mac. A native, notarized, ad-free macOS app. Free and open source. No tabs, no telemetry. Built with SwiftUI." />
+
+<link rel="canonical" href="https://2048.moone.dev/" />
+<link rel="icon" type="image/png" sizes="256x256" href="/assets/icon-256.png" />
+<link rel="apple-touch-icon" href="/assets/icon-512.png" />
+
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://2048.moone.dev/" />
+<meta property="og:title" content="2048 Mac — native, notarized, ad-free 2048 for macOS" />
+<meta property="og:description" content="Play 2048 on your Mac. A native, notarized, ad-free macOS app. Free and open source." />
+<meta property="og:image" content="https://2048.moone.dev/assets/icon-512.png" />
+<!-- TODO: replace with a 1200×630 og-image.png rendered from /og-template.html -->
+
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="2048 Mac — native, notarized, ad-free 2048 for macOS" />
+<meta name="twitter:description" content="Play 2048 on your Mac. A native, notarized, ad-free macOS app. Free and open source." />
+<meta name="twitter:image" content="https://2048.moone.dev/assets/icon-512.png" />
+
+<meta name="theme-color" content="#FAF8EF" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#1A1A1E" media="(prefers-color-scheme: dark)" />
+
+<style>
+  /* ====================================================
+     Game2048 palette — verbatim from GamePalette.swift
+     ==================================================== */
+  :root {
+    --bg:         #FAF8EF;
+    --text:       #776E65;
+    --text-soft:  rgba(119,110,101,0.70);
+    --board:      #BBADA0;
+    --cell:       #CDC1B4;
+    --button:     #8F7A66;
+    --button-ink: #F9F6F0;
+    --gold:       #EDC22E;
+    --gold-deep:  #C99700;
+
+    --hairline:   rgba(119,110,101,0.10);
+    --hairline-2: rgba(119,110,101,0.18);
+
+    /* Tile palette (light) — TileView.swift */
+    --t-2:    #EEE4DA;
+    --t-4:    #EDE0C8;
+    --t-8:    #F2B179;
+    --t-16:   #F59563;
+    --t-32:   #F67C5F;
+    --t-64:   #F65E3B;
+    --t-128:  #EDCF72;
+    --t-256:  #EDCC61;
+    --t-512:  #EDC850;
+    --t-1024: #EDC53F;
+    --t-2048: #EDC22E;
+
+    --topbar-h: 60px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:         #1A1A1E;
+      --text:       #F2ECDF;
+      --text-soft:  rgba(242,236,223,0.65);
+      --board:      #3B3941;
+      --cell:       #4D4A57;
+      --button:     #B29263;
+      --button-ink: #1A1A1E;
+      --gold:       #ED9700;
+      --gold-deep:  #FFC857;
+      --hairline:   rgba(242,236,223,0.10);
+      --hairline-2: rgba(242,236,223,0.18);
+
+      --t-2:    #E1D6C4;
+      --t-4:    #DCC197;
+      --t-8:    #F2B271;
+      --t-16:   #F48F55;
+      --t-32:   #F57053;
+      --t-64:   #F65332;
+      --t-128:  #E4BB50;
+      --t-256:  #E6B13D;
+      --t-512:  #E7A82C;
+      --t-1024: #E99F1F;
+      --t-2048: #EC9716;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", Avenir, "Avenir Next", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body { min-height: 100vh; overflow-x: hidden; }
+
+  a { color: inherit; }
+
+  ::selection { background: var(--gold); color: #2D1F00; }
+
+  /* ---------- Sticky top bar ---------- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--topbar-h);
+    padding: 0 max(20px, env(safe-area-inset-left)) 0 max(20px, env(safe-area-inset-right));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: saturate(160%) blur(10px);
+    -webkit-backdrop-filter: saturate(160%) blur(10px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 240ms ease, background 240ms ease;
+  }
+  .topbar.scrolled { border-bottom-color: var(--hairline); }
+
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.005em;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .wordmark img {
+    width: 28px; height: 28px; display: block;
+    border-radius: 7px;
+  }
+
+  .nav {
+    display: flex; gap: 24px;
+    align-items: center;
+    font-size: 14px;
+  }
+  .nav a {
+    color: var(--text);
+    text-decoration: none;
+    opacity: 0.78;
+  }
+  .nav a:hover { opacity: 1; }
+  .nav .nav-cta {
+    background: var(--button);
+    color: var(--button-ink);
+    padding: 8px 14px;
+    border-radius: 9px;
+    font-weight: 600;
+    opacity: 1;
+  }
+
+  /* ---------- Page wrap ---------- */
+  .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 max(24px, env(safe-area-inset-left)) 0 max(24px, env(safe-area-inset-right));
+  }
+
+  /* ---------- Hero (Variant A · split) ---------- */
+  .hero {
+    padding: 72px 0 56px;
+    display: grid;
+    grid-template-columns: 1fr 480px;
+    gap: 64px;
+    align-items: center;
+  }
+  .hero-text { min-width: 0; }
+  .headline {
+    font-size: clamp(40px, 5vw, 60px);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.04;
+    margin: 0 0 18px;
+    color: var(--text);
+  }
+  .lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22em;
+    /* center on caps optical line, not x-height. Empirical for SF Pro Rounded. */
+    vertical-align: -0.16em;
+    line-height: 1;
+  }
+  .lockup-tile {
+    /* font-size drives EVERYTHING — width/height/radius/shadow scale together */
+    font-size: 0.32em;            /* text inside tile = 32% of headline font */
+    width: 3.1em;                 /* 3.1 × 0.32em = 0.99em of headline → tile ≈ headline cap-height */
+    height: 3.1em;
+    border-radius: 0.42em;
+    background: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    box-shadow: 0 0.42em 0.95em -0.42em rgba(237,194,46,0.62);
+  }
+  @media (prefers-color-scheme: dark) {
+    .lockup-tile { color: #1A1A1E; }
+  }
+  .subhead {
+    font-size: clamp(17px, 1.6vw, 20px);
+    color: var(--text-soft);
+    margin: 0 0 32px;
+    max-width: 32ch;
+    line-height: 1.5;
+  }
+  .cta-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--button);
+    color: var(--button-ink);
+    padding: 16px 22px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 14px 28px -10px color-mix(in srgb, var(--button) 60%, transparent);
+    letter-spacing: -0.005em;
+    transition: transform 140ms ease, box-shadow 220ms ease;
+    will-change: transform;
+  }
+  .cta:hover { transform: scale(1.02); }
+  .cta:active { transform: scale(0.98); }
+  .cta:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .cta .meta {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.78;
+    letter-spacing: 0.04em;
+  }
+  .cta-secondary {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.82;
+    border-bottom: 1px solid var(--hairline-2);
+    padding-bottom: 1px;
+  }
+  .cta-secondary:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+  }
+  .trust {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-soft);
+    letter-spacing: 0.005em;
+  }
+  .trust::before {
+    content: '';
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--gold);
+    flex-shrink: 0;
+  }
+
+  /* ---------- Live board ---------- */
+  .board-card {
+    background: var(--board);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 24px 50px -22px rgba(94,80,69,0.55), 0 8px 18px -12px rgba(94,80,69,0.35);
+    width: 100%;
+    max-width: 480px;
+    margin-left: auto;
+    aspect-ratio: 1 / 1;
+  }
+  @media (prefers-color-scheme: dark) {
+    .board-card { box-shadow: 0 24px 50px -20px rgba(0,0,0,0.55); }
+  }
+  /* Static 4×4 background grid (cells never move) */
+  .board-bg {
+    position: absolute;
+    inset: 16px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .board-bg .board-cell {
+    background: var(--cell);
+    border-radius: 9px;
+  }
+
+  /* Overlay layer for actual tiles — positioned via JS transforms */
+  .tile-layer {
+    position: absolute;
+    inset: 16px;
+    pointer-events: none;
+    --cell-size: 96px;       /* updated by JS after measure */
+  }
+
+  .tile {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--text);
+    font-family: -apple-system, "SF Pro Rounded", system-ui, sans-serif;
+    pointer-events: none;
+    /* Position via CSS vars so animations can keep translate while scaling */
+    --tx: 0px;
+    --ty: 0px;
+    transform: translate(var(--tx), var(--ty));
+    transition: transform 180ms cubic-bezier(0.25, 0.46, 0.45, 1);
+    will-change: transform;
+  }
+  /* Spawn — new tile fades + scales in at its destination */
+  .tile.appear {
+    animation: tileSpawn 240ms cubic-bezier(0.34, 1.45, 0.64, 1) both;
+    animation-delay: 50ms;
+  }
+  /* Merge — survivor pops after the source tile finishes sliding into it */
+  .tile.merge {
+    animation: tileMerge 220ms cubic-bezier(0.34, 1.55, 0.64, 1) both;
+  }
+  @keyframes tileSpawn {
+    0%   { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+    60%  { transform: translate(var(--tx), var(--ty)) scale(1.16); opacity: 1; }
+    100% { transform: translate(var(--tx), var(--ty)) scale(1);    opacity: 1; }
+  }
+  @keyframes tileMerge {
+    0%   { transform: translate(var(--tx), var(--ty)) scale(1); }
+    40%  { transform: translate(var(--tx), var(--ty)) scale(1.22); }
+    100% { transform: translate(var(--tx), var(--ty)) scale(1); }
+  }
+
+  /* Font-sizes scale with --cell-size set on .tile-layer at measure time */
+  .tile[data-v="2"], .tile[data-v="4"], .tile[data-v="8"]    { font-size: calc(var(--cell-size) * 0.45); }
+  .tile[data-v="16"], .tile[data-v="32"], .tile[data-v="64"] { font-size: calc(var(--cell-size) * 0.40); }
+  .tile[data-v="128"], .tile[data-v="256"], .tile[data-v="512"] { font-size: calc(var(--cell-size) * 0.32); }
+  .tile[data-v="1024"], .tile[data-v="2048"] { font-size: calc(var(--cell-size) * 0.24); }
+
+  .tile[data-v="2"]    { background: var(--t-2); }
+  .tile[data-v="4"]    { background: var(--t-4); }
+  .tile[data-v="8"]    { background: var(--t-8);    color: var(--button-ink); }
+  .tile[data-v="16"]   { background: var(--t-16);   color: var(--button-ink); }
+  .tile[data-v="32"]   { background: var(--t-32);   color: var(--button-ink); }
+  .tile[data-v="64"]   { background: var(--t-64);   color: var(--button-ink); }
+  .tile[data-v="128"]  { background: var(--t-128);  color: var(--button-ink); }
+  .tile[data-v="256"]  { background: var(--t-256);  color: var(--button-ink); }
+  .tile[data-v="512"]  { background: var(--t-512);  color: var(--button-ink); }
+  .tile[data-v="1024"] { background: var(--t-1024); color: var(--button-ink); }
+  .tile[data-v="2048"] { background: var(--t-2048); color: var(--button-ink);
+                         box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--gold) 70%, transparent); }
+
+  .board-caption {
+    margin: 12px auto 0;
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--text-soft);
+    letter-spacing: 0.06em;
+    max-width: 480px;
+    line-height: 1.6;
+  }
+  .board-caption strong {
+    color: var(--text);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .key {
+    display: inline-block;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+    color: var(--text);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--hairline-2);
+    min-width: 18px;
+    text-align: center;
+    letter-spacing: 0;
+    line-height: 1.4;
+    vertical-align: 1px;
+  }
+
+  /* Board needs to host an absolutely-positioned overlay */
+  .board-card {
+    position: relative;
+    outline: none;
+  }
+  .board-card:focus-visible {
+    box-shadow: 0 0 0 3px var(--gold), 0 24px 50px -22px rgba(94,80,69,0.55);
+  }
+  .board-overlay {
+    position: absolute;
+    inset: 16px;
+    border-radius: 9px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 24px;
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: overlayIn 280ms cubic-bezier(.2,.85,.2,1);
+  }
+  .board-overlay[hidden] { display: none; }
+  .board-overlay.win {
+    background: color-mix(in srgb, var(--gold) 60%, transparent);
+    color: #2D1F00;
+  }
+  @keyframes overlayIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .overlay-msg {
+    font-size: clamp(22px, 3vw, 28px);
+    font-weight: 800;
+    color: var(--text);
+    text-align: center;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
+  .board-overlay.win .overlay-msg { color: #2D1F00; }
+  .overlay-btn {
+    background: var(--button);
+    color: var(--button-ink);
+    border: 0;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: -0.005em;
+    transition: transform 140ms ease;
+  }
+  .overlay-btn:hover { transform: scale(1.02); }
+  .overlay-btn:active { transform: scale(0.98); }
+  .overlay-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .board-overlay.win .overlay-btn {
+    background: #2D1F00;
+    color: var(--gold);
+  }
+
+  /* ---------- Features ---------- */
+  .features {
+    padding: 24px 0 8px;
+  }
+  .features-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--cell);
+    color: var(--text);
+    padding: 9px 14px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: -0.002em;
+  }
+  .chip::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--button);
+  }
+  .chip.gold::before { background: var(--gold); }
+
+  /* ---------- How-to-play ---------- */
+  .howto {
+    padding: 64px 0 32px;
+  }
+  .section-eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    margin: 0 0 22px;
+    font-weight: 600;
+  }
+  .howto-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .howto-card {
+    background: color-mix(in srgb, var(--cell) 55%, transparent);
+    border-radius: 14px;
+    padding: 22px 24px 24px;
+    transition: transform 220ms ease, box-shadow 220ms ease;
+  }
+  .howto-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px -10px rgba(119,110,101,0.30);
+  }
+  .howto-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    background: var(--button);
+    color: var(--button-ink);
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .howto-card h3 {
+    font-size: 18px;
+    margin: 0 0 6px;
+    color: var(--text);
+    letter-spacing: -0.005em;
+  }
+  .howto-card p {
+    font-size: 14px;
+    color: var(--text-soft);
+    margin: 0 0 18px;
+    line-height: 1.5;
+  }
+  .howto-mini {
+    display: flex; align-items: center; gap: 10px;
+    height: 52px;
+  }
+  .mini-tile {
+    width: 44px; height: 44px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .arrow {
+    color: var(--text-soft);
+    font-size: 18px;
+  }
+
+  /* ---------- Download ---------- */
+  .download {
+    padding: 32px 0 80px;
+  }
+  .download-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 20px;
+  }
+  .dl-card {
+    background: color-mix(in srgb, var(--cell) 48%, transparent);
+    border: 1px solid var(--hairline);
+    border-radius: 16px;
+    padding: 24px 26px 22px;
+    position: relative;
+  }
+  .dl-card.primary {
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--gold) 16%, transparent) 0%,
+      color-mix(in srgb, var(--gold) 6%, transparent) 100%);
+    border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  }
+  .dl-card .badge {
+    position: absolute;
+    top: 18px; right: 22px;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+    background: color-mix(in srgb, var(--gold) 22%, transparent);
+    padding: 5px 9px;
+    border-radius: 5px;
+    font-weight: 700;
+  }
+  .dl-card .badge.neutral {
+    color: var(--text-soft);
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+  }
+  .dl-card .ext {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--text-soft);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .dl-card h3 {
+    font-size: 21px;
+    margin: 0 0 6px;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .dl-card .descr {
+    font-size: 14px;
+    color: var(--text-soft);
+    margin: 0 0 18px;
+    line-height: 1.5;
+  }
+  .dl-card .dl-meta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-soft);
+    margin-bottom: 18px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.02em;
+  }
+  .dl-card .dl-meta span::before {
+    content: '·';
+    margin-right: 8px;
+    opacity: 0.5;
+  }
+  .dl-card .dl-meta span:first-child::before { content: ''; margin-right: 0; }
+  .dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: -0.002em;
+    transition: transform 140ms ease;
+  }
+  .dl-btn:hover { transform: scale(1.02); }
+  .dl-btn:active { transform: scale(0.98); }
+  .dl-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .dl-card.primary .dl-btn {
+    background: var(--button);
+    color: var(--button-ink);
+  }
+  .dl-btn.secondary {
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+    color: var(--text);
+  }
+  details.sha {
+    margin-top: 14px;
+    font-size: 11.5px;
+    color: var(--text-soft);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  details.sha summary {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  details.sha summary::-webkit-details-marker { display: none; }
+  details.sha summary::before {
+    content: '▸ ';
+    opacity: 0.5;
+    transition: transform 200ms ease;
+    display: inline-block;
+  }
+  details.sha[open] summary::before {
+    transform: rotate(90deg);
+  }
+  details.sha .hash {
+    margin-top: 6px;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--hairline);
+    padding: 36px 0 56px;
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 40px;
+    font-size: 13.5px;
+    color: var(--text-soft);
+  }
+  .footer-grid h4 {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text);
+    margin: 0 0 12px;
+    font-weight: 600;
+  }
+  .footer-grid ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    line-height: 1.95;
+  }
+  .footer-grid a {
+    color: var(--text-soft);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 160ms ease, border-color 160ms ease;
+  }
+  .footer-grid a:hover {
+    color: var(--text);
+    border-bottom-color: var(--hairline-2);
+  }
+  .footer-mark {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 17px; color: var(--text);
+  }
+  .footer-mark img { width: 28px; height: 28px; border-radius: 7px; }
+  .tagline {
+    margin: 12px 0 0;
+    line-height: 1.55;
+    max-width: 38ch;
+  }
+  .build {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    line-height: 1.85;
+    letter-spacing: 0.02em;
+  }
+
+  /* ===========================================================
+     RESPONSIVE — §10 mobile/responsive specifications
+     =========================================================== */
+
+  /* Tablet (768–1279) */
+  @media (max-width: 1279px) {
+    .hero {
+      grid-template-columns: 1fr;
+      gap: 48px;
+      padding: 48px 0 40px;
+      text-align: left;
+    }
+    .hero-board { display: flex; justify-content: center; }
+    .board-card { margin: 0 auto; max-width: 420px; }
+    .nav .nav-link { display: none; }
+  }
+
+  /* Mobile (375–767) — §10.2 */
+  @media (max-width: 767px) {
+    :root { --topbar-h: 56px; }
+    body { font-size: 16px; }
+
+    .topbar { padding: 0 16px; }
+    .nav { gap: 0; }
+    .nav a:not(.nav-cta) { display: none; }
+    .nav .nav-cta {
+      font-size: 13px;
+      padding: 7px 12px;
+      border-radius: 8px;
+    }
+    .wordmark { font-size: 16px; }
+    .wordmark img { width: 26px; height: 26px; }
+
+    .wrap { padding: 0 16px; }
+
+    .hero {
+      padding: 32px 0 28px;
+      gap: 28px;
+    }
+    .headline {
+      font-size: clamp(32px, 9vw, 42px);
+    }
+    .lockup-tile { width: 48px; height: 48px; font-size: 14px; border-radius: 7px; }
+    .subhead { font-size: 16px; margin-bottom: 24px; }
+
+    .cta-row { gap: 12px; }
+    .cta {
+      width: 100%;
+      justify-content: center;
+      padding: 16px 18px;
+      font-size: 15px;
+    }
+    .cta .meta { display: block; font-size: 11px; opacity: 0.7; }
+
+    .board-card { max-width: 100%; padding: 12px; border-radius: 14px; }
+    .board-bg, .tile-layer { inset: 12px; }
+    .board-bg { gap: 9px; }
+    .board-bg .board-cell { border-radius: 7px; }
+    .tile { border-radius: 7px; }
+
+    .features { padding: 16px 0 4px; }
+    .chip { font-size: 12.5px; padding: 7px 11px; }
+
+    .howto { padding: 40px 0 24px; }
+    .howto-grid { grid-template-columns: 1fr; gap: 12px; }
+    .howto-card { padding: 18px 18px 20px; }
+    .howto-card h3 { font-size: 17px; }
+
+    .download { padding: 24px 0 48px; }
+    .download-grid { grid-template-columns: 1fr; gap: 14px; }
+    .dl-card { padding: 20px 20px 18px; }
+    .dl-card .badge { top: 16px; right: 18px; }
+    .dl-btn { width: 100%; justify-content: center; padding: 13px 14px; }
+
+    footer { padding: 28px 0 36px; }
+    .footer-grid {
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+
+    /* §10.3 — touch targets ≥44pt */
+    .nav-cta, .cta, .dl-btn, .cta-secondary { min-height: 44px; }
+  }
+
+  /* §10.4 — wrong-platform mode swaps CTA copy via JS (.platform-* classes) */
+  .platform-ios .cta-row .cta-mac,
+  .platform-android .cta-row .cta-mac { display: none; }
+  .platform-ios .cta-mobile,
+  .platform-android .cta-mobile { display: inline-flex; }
+  .platform-ios .cta-windows,
+  .platform-android .cta-windows { display: none; }
+
+  .platform-windows .cta-row .cta-mac,
+  .platform-linux .cta-row .cta-mac { display: none; }
+  .platform-windows .cta-windows,
+  .platform-linux .cta-windows { display: inline-flex; }
+  .platform-windows .cta-mobile,
+  .platform-linux .cta-mobile { display: none; }
+
+  /* hidden by default — JS reveals via body class */
+  .cta-mobile, .cta-windows { display: none; }
+
+  /* Trust badge — only relevant when a Mac DMG is on offer */
+  .platform-ios .trust, .platform-android .trust,
+  .platform-windows .trust, .platform-linux .trust { display: none; }
+
+  /* Download section — swap DMG+ZIP for a platform-specific muted card */
+  .dl-card.ios-only, .dl-card.other-only { display: none; }
+  .platform-ios .dl-card.mac-only,
+  .platform-android .dl-card.mac-only,
+  .platform-windows .dl-card.mac-only,
+  .platform-linux .dl-card.mac-only { display: none; }
+  .platform-ios .dl-card.ios-only,
+  .platform-android .dl-card.ios-only { display: block; }
+  .platform-windows .dl-card.other-only,
+  .platform-linux .dl-card.other-only { display: block; }
+  .platform-ios .download-grid,
+  .platform-android .download-grid,
+  .platform-windows .download-grid,
+  .platform-linux .download-grid {
+    grid-template-columns: 1fr;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  /* reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .tile.appear { animation: none; }
+    .cta, .dl-btn, .howto-card { transition: none; }
+    .tile { transition: none; }
+  }
+
+  /* skip link for keyboard nav */
+  .skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+  }
+  .skip:focus {
+    left: 16px;
+    top: 12px;
+    padding: 8px 12px;
+    background: var(--button);
+    color: var(--button-ink);
+    border-radius: 8px;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#download">Skip to download</a>
+
+<header class="topbar" id="topbar">
+  <a class="wordmark" href="/" aria-label="2048 Mac — home">
+    <span>2048</span>
+  </a>
+  <nav class="nav" aria-label="Primary">
+    <a class="nav-link" href="#features">Features</a>
+    <a class="nav-link" href="#download">Download</a>
+    <a class="nav-link" href="https://github.com/kyzdes/ios-2048" target="_blank" rel="noopener">GitHub</a>
+    <a class="nav-cta" href="#download">Download</a>
+  </nav>
+</header>
+
+<main class="wrap" id="main">
+
+  <!-- ===== HERO (§8.4 DIM1: split, text-left + board-right) ===== -->
+  <section class="hero">
+    <div class="hero-text">
+      <h1 class="headline">
+        Join the tiles.<br/>
+        Get to
+        <span class="lockup" aria-label="2048">
+          <span class="lockup-tile" aria-hidden="true">2048</span>
+        </span>
+      </h1>
+      <p class="subhead">A native, notarized, ad-free 2048 for macOS. Free. Open source. No tabs, no telemetry.</p>
+
+      <div class="cta-row">
+        <a class="cta cta-mac"
+           href="https://github.com/kyzdes/ios-2048/releases/latest/download/Game2048Mac.dmg">
+          <span>Download for Mac</span>
+          <span class="meta">DMG · v1.0</span>
+        </a>
+        <a class="cta cta-mobile"
+           href="mailto:kyzdes5@gmail.com?subject=2048%20iOS%20%E2%80%94%20notify%20me">
+          <span>iOS coming soon</span>
+          <span class="meta">Get notified</span>
+        </a>
+        <a class="cta cta-windows"
+           href="https://github.com/kyzdes/ios-2048"
+           target="_blank" rel="noopener">
+          <span>Mac only for now</span>
+          <span class="meta">★ Star on GitHub</span>
+        </a>
+        <a class="cta-secondary cta-mac"
+           href="https://github.com/kyzdes/ios-2048/releases/latest/download/Game2048Mac.zip">or get the ZIP</a>
+      </div>
+
+    </div>
+
+    <div class="hero-board">
+      <div class="board-card" id="board-card" role="application" aria-label="2048 game — use arrow keys or WASD to move tiles" tabindex="0">
+        <div class="board-bg" id="board-bg" aria-hidden="true">
+          <div class="board-cell"></div><div class="board-cell"></div><div class="board-cell"></div><div class="board-cell"></div>
+          <div class="board-cell"></div><div class="board-cell"></div><div class="board-cell"></div><div class="board-cell"></div>
+          <div class="board-cell"></div><div class="board-cell"></div><div class="board-cell"></div><div class="board-cell"></div>
+          <div class="board-cell"></div><div class="board-cell"></div><div class="board-cell"></div><div class="board-cell"></div>
+        </div>
+        <div class="tile-layer" id="tile-layer"></div>
+        <div class="board-overlay" id="board-overlay" hidden>
+          <div class="overlay-msg" id="overlay-msg"></div>
+          <button class="overlay-btn" id="overlay-btn" type="button">Try again</button>
+        </div>
+      </div>
+      <div class="board-caption" id="board-caption">Auto-playing · press <span class="key">↑</span> <span class="key">←</span> <span class="key">↓</span> <span class="key">→</span> to play</div>
+    </div>
+  </section>
+
+  <!-- ===== Feature chips ===== -->
+  <section class="features" id="features" aria-label="Features">
+    <div class="features-row">
+      <span class="chip gold">Native macOS</span>
+      <span class="chip">60 fps</span>
+      <span class="chip">Free</span>
+      <span class="chip">Open source</span>
+      <span class="chip">No ads</span>
+      <span class="chip">Light + Dark</span>
+      <span class="chip">Keyboard + Trackpad</span>
+    </div>
+  </section>
+
+  <!-- ===== How-to-play ===== -->
+  <section class="howto">
+    <h2 class="section-eyebrow">How to play</h2>
+    <div class="howto-grid">
+      <div class="howto-card">
+        <span class="howto-step" aria-hidden="true">1</span>
+        <h3>Swipe</h3>
+        <p>Arrow keys, WASD, or trackpad swipes nudge every tile in one direction at once.</p>
+        <div class="howto-mini" aria-hidden="true">
+          <div class="mini-tile" style="background:var(--t-2);color:var(--text);">2</div>
+          <span class="arrow">→</span>
+          <div class="mini-tile" style="background:var(--t-2);color:var(--text);">2</div>
+        </div>
+      </div>
+      <div class="howto-card">
+        <span class="howto-step" aria-hidden="true">2</span>
+        <h3>Merge</h3>
+        <p>Two equal tiles collide and become one tile with twice the value.</p>
+        <div class="howto-mini" aria-hidden="true">
+          <div class="mini-tile" style="background:var(--t-4);color:var(--text);">4</div>
+          <span class="arrow">→</span>
+          <div class="mini-tile" style="background:var(--t-8);color:var(--button-ink);">8</div>
+        </div>
+      </div>
+      <div class="howto-card">
+        <span class="howto-step" aria-hidden="true">3</span>
+        <h3>Reach 2048</h3>
+        <p>Keep merging. The gold tile is your reward.</p>
+        <div class="howto-mini" aria-hidden="true">
+          <div class="mini-tile" style="background:var(--t-1024);color:var(--button-ink);font-size:13px;">1024</div>
+          <span class="arrow">→</span>
+          <div class="mini-tile" style="background:var(--t-2048);color:var(--button-ink);font-size:13px;box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--gold) 70%, transparent);">2048</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Download (§8.4 DIM3: DMG primary + ZIP secondary) ===== -->
+  <section class="download" id="download">
+    <h2 class="section-eyebrow">Download</h2>
+    <div class="download-grid">
+      <article class="dl-card primary mac-only">
+        <span class="badge">Recommended</span>
+        <div class="ext">.dmg · signed &amp; notarized</div>
+        <h3>Game2048Mac.dmg</h3>
+        <p class="descr">Drag-and-drop installer. macOS opens it straight from the Downloads folder.</p>
+        <div class="dl-meta">
+          <span>~2 MB</span>
+          <span>macOS 14.0+</span>
+          <span>v1.0</span>
+        </div>
+        <a class="dl-btn"
+           href="https://github.com/kyzdes/ios-2048/releases/latest/download/Game2048Mac.dmg">
+          Download · DMG
+        </a>
+        <details class="sha">
+          <summary>SHA-256 checksum</summary>
+          <div class="hash">Generated per release · see GitHub Release notes for the v1.0 hash.</div>
+        </details>
+      </article>
+
+      <article class="dl-card mac-only">
+        <span class="badge neutral">Sparkle-ready</span>
+        <div class="ext">.zip · code-signed</div>
+        <h3>Game2048Mac.zip</h3>
+        <p class="descr">For auto-update tooling, sandbox runners, or browsers that block DMG files.</p>
+        <div class="dl-meta">
+          <span>~2 MB</span>
+          <span>macOS 14.0+</span>
+          <span>v1.0</span>
+        </div>
+        <a class="dl-btn secondary"
+           href="https://github.com/kyzdes/ios-2048/releases/latest/download/Game2048Mac.zip">
+          Download · ZIP
+        </a>
+        <details class="sha">
+          <summary>SHA-256 checksum</summary>
+          <div class="hash">Generated per release · see GitHub Release notes for the v1.0 hash.</div>
+        </details>
+      </article>
+
+      <!-- iOS / Android visitors (§10.4) — replaces DMG+ZIP -->
+      <article class="dl-card ios-only">
+        <span class="badge neutral">Soon</span>
+        <div class="ext">iOS · TestFlight TBD</div>
+        <h3>2048 Mac is desktop-only</h3>
+        <p class="descr">The iOS build is in the works. Leave an address and we'll mail once, when it lands. No list, no marketing.</p>
+        <div class="dl-meta">
+          <span>iPhone &amp; iPad</span>
+          <span>TBD</span>
+        </div>
+        <a class="dl-btn"
+           href="mailto:kyzdes5@gmail.com?subject=2048%20iOS%20%E2%80%94%20notify%20me">
+          Notify me · email
+        </a>
+        <p class="descr" style="margin-top:14px;margin-bottom:0;font-size:13px;">
+          Or <a href="https://github.com/kyzdes/ios-2048" target="_blank" rel="noopener" style="color:var(--text);border-bottom:1px solid var(--hairline-2);text-decoration:none;">★ star the GitHub repo</a> — same channel where TestFlight invites will appear.
+        </p>
+      </article>
+
+      <!-- Windows / Linux visitors — replaces DMG+ZIP -->
+      <article class="dl-card other-only">
+        <span class="badge neutral">Mac only</span>
+        <div class="ext">macOS 14.0+ · Apple Silicon &amp; Intel</div>
+        <h3>2048 Mac is Mac-only for now</h3>
+        <p class="descr">Windows and Linux builds aren't on the roadmap yet. Star the GitHub repo — that's where any future build would land first.</p>
+        <a class="dl-btn"
+           href="https://github.com/kyzdes/ios-2048"
+           target="_blank" rel="noopener">
+          ★ Star on GitHub
+        </a>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="col">
+        <div class="footer-mark">
+          <span>2048</span>
+        </div>
+        <p class="tagline">It's 2048. For Mac. Free.<br/>One window, no telemetry, no tabs.</p>
+      </div>
+      <div class="col">
+        <h4>Links</h4>
+        <ul>
+          <li><a href="https://github.com/kyzdes/ios-2048" target="_blank" rel="noopener">GitHub repo</a></li>
+          <li><a href="https://github.com/kyzdes/ios-2048/blob/main/LICENSE" target="_blank" rel="noopener">License · MIT</a></li>
+          <li><span>Privacy · we collect nothing.</span></li>
+        </ul>
+      </div>
+      <div class="col">
+        <h4>Build</h4>
+        <div class="build">
+          v1.0 (build 1)<br/>
+          Notarized · Developer ID<br/>
+          Built with SwiftUI
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ============================================================
+     Live board — real 2048 engine with persistent-tile sliding
+     Each tile is a DOM node with a stable id that PERSISTS across
+     moves; moves update the node's --tx/--ty CSS vars, and the
+     `transition: transform 180ms` carries it across the board.
+     Merges = source tile slides into destination cell, gets removed,
+     destination tile pops with .merge animation.
+     Auto-mode plays the engine via a tiny down/left/right/up AI;
+     first user input swaps to a fresh playable game.
+     ============================================================ */
+  (function(){
+    const card     = document.getElementById('board-card');
+    const boardBg  = document.getElementById('board-bg');
+    const tileLayer= document.getElementById('tile-layer');
+    const caption  = document.getElementById('board-caption');
+    const overlay  = document.getElementById('board-overlay');
+    const overMsg  = document.getElementById('overlay-msg');
+    const overBtn  = document.getElementById('overlay-btn');
+    if (!card || !boardBg || !tileLayer) return;
+
+    const SIZE = 4;
+    const SLIDE_MS = 180;
+    const RESOLVE_MS = SLIDE_MS + 20;  // wait for slide before merge resolution
+    const AUTO_TICK_MS = 1100;
+
+    let tiles = [];                 // [{ id, value, row, col, willRemove }]
+    let nextId = 1;
+    let cellSize = 96;
+    let gap = 12;
+    let mode = 'auto';              // 'auto' | 'playing' | 'won' | 'over'
+    let score = 0;
+    let wonOnce = false;
+    let autoTimer = null;
+    let inTransition = false;
+
+    /* ---------- measure ---------- */
+    function measureBoard() {
+      const cells = boardBg.querySelectorAll('.board-cell');
+      if (cells.length < 2) return false;
+      const r1 = cells[0].getBoundingClientRect();
+      const r2 = cells[1].getBoundingClientRect();
+      if (r1.width < 10) return false;
+      cellSize = r1.width;
+      gap = Math.max(0, r2.left - r1.right);
+      tileLayer.style.setProperty('--cell-size', cellSize + 'px');
+      return true;
+    }
+
+    /* ---------- tile helpers ---------- */
+    function getTileAt(r, c) {
+      for (const t of tiles) if (!t.willRemove && t.row === r && t.col === c) return t;
+      return null;
+    }
+    function nodeOf(tile) { return document.getElementById('tile-' + tile.id); }
+    function moveNodeTo(el, row, col) {
+      const x = col * (cellSize + gap);
+      const y = row * (cellSize + gap);
+      el.style.setProperty('--tx', x + 'px');
+      el.style.setProperty('--ty', y + 'px');
+      el.style.width = cellSize + 'px';
+      el.style.height = cellSize + 'px';
+    }
+    function ensureNode(tile) {
+      let el = nodeOf(tile);
+      if (el) return el;
+      el = document.createElement('div');
+      el.id = 'tile-' + tile.id;
+      el.className = 'tile';
+      el.setAttribute('data-v', String(tile.value));
+      el.textContent = String(tile.value);
+      // First paint: skip slide transition so the tile appears in place
+      el.style.transition = 'none';
+      tileLayer.appendChild(el);
+      moveNodeTo(el, tile.row, tile.col);
+      void el.offsetWidth;          // commit position
+      el.style.transition = '';     // restore slide transition for future updates
+      return el;
+    }
+    function paintTile(tile, opts) {
+      opts = opts || {};
+      const el = ensureNode(tile);
+      el.setAttribute('data-v', String(tile.value));
+      el.textContent = String(tile.value);
+      if (!opts.skipMove) moveNodeTo(el, tile.row, tile.col);
+      if (opts.appear) {
+        el.classList.remove('appear', 'merge');
+        void el.offsetWidth;
+        el.classList.add('appear');
+      } else if (opts.merge) {
+        el.classList.remove('appear', 'merge');
+        void el.offsetWidth;
+        el.classList.add('merge');
+      }
+    }
+    function clearAnimClasses() {
+      tiles.forEach(t => {
+        const el = nodeOf(t);
+        if (el) el.classList.remove('appear', 'merge');
+      });
+    }
+    function clearBoard() {
+      while (tileLayer.firstChild) tileLayer.firstChild.remove();
+      tiles = [];
+      nextId = 1;
+    }
+
+    /* ---------- spawn ---------- */
+    function spawnTile() {
+      const occ = new Set();
+      tiles.forEach(t => { if (!t.willRemove) occ.add(t.row * SIZE + t.col); });
+      const empty = [];
+      for (let r = 0; r < SIZE; r++)
+        for (let c = 0; c < SIZE; c++)
+          if (!occ.has(r * SIZE + c)) empty.push({ r, c });
+      if (empty.length === 0) return null;
+      const { r, c } = empty[Math.floor(Math.random() * empty.length)];
+      const t = { id: nextId++, value: Math.random() < 0.9 ? 2 : 4, row: r, col: c };
+      tiles.push(t);
+      return t;
+    }
+
+    /* ---------- move planning (pure — doesn't touch state or DOM) ---------- */
+    const TRAVERSALS = {
+      up:    { rs: [0,1,2,3], cs: [0,1,2,3], dr: -1, dc: 0 },
+      down:  { rs: [3,2,1,0], cs: [0,1,2,3], dr: +1, dc: 0 },
+      left:  { rs: [0,1,2,3], cs: [0,1,2,3], dr: 0, dc: -1 },
+      right: { rs: [0,1,2,3], cs: [3,2,1,0], dr: 0, dc: +1 },
+    };
+    function planMove(state, dir) {
+      const trav = TRAVERSALS[dir];
+      if (!trav) return [];
+      // Clone tile records so we can mutate row/col without affecting live state
+      const copies = state.filter(t => !t.willRemove).map(t => ({ ...t, willRemove: false }));
+      const getT = (r, c) => copies.find(t => t.row === r && t.col === c && !t.willRemove);
+      const moves = [];
+      const mergedThisTurn = new Set();
+      for (const r of trav.rs) {
+        for (const c of trav.cs) {
+          const tile = getT(r, c);
+          if (!tile || tile.willRemove) continue;
+          let nr = r, nc = c;
+          let mergeTarget = null;
+          while (true) {
+            const tr = nr + trav.dr;
+            const tc = nc + trav.dc;
+            if (tr < 0 || tr >= SIZE || tc < 0 || tc >= SIZE) break;
+            const next = getT(tr, tc);
+            if (next) {
+              if (next.value === tile.value && !mergedThisTurn.has(next.id)) {
+                mergeTarget = next;
+                nr = tr; nc = tc;
+                mergedThisTurn.add(next.id);
+              }
+              break;
+            }
+            nr = tr; nc = tc;
+          }
+          if (mergeTarget) {
+            moves.push({ id: tile.id, toRow: mergeTarget.row, toCol: mergeTarget.col, mergeIntoId: mergeTarget.id });
+            tile.row = mergeTarget.row; tile.col = mergeTarget.col; tile.willRemove = true;
+          } else if (nr !== r || nc !== c) {
+            moves.push({ id: tile.id, toRow: nr, toCol: nc, mergeIntoId: null });
+            tile.row = nr; tile.col = nc;
+          }
+        }
+      }
+      return moves;
+    }
+    function hasMoves() {
+      if (tiles.filter(t => !t.willRemove).length < SIZE * SIZE) return true;
+      for (const t of tiles) {
+        if (t.willRemove) continue;
+        const right = getTileAt(t.row, t.col + 1);
+        if (right && right.value === t.value) return true;
+        const down = getTileAt(t.row + 1, t.col);
+        if (down && down.value === t.value) return true;
+      }
+      return false;
+    }
+
+    /* ---------- apply move (with DOM slide + merge + spawn) ---------- */
+    function applyMove(dir) {
+      if (inTransition) return false;
+      const plan = planMove(tiles, dir);
+      if (plan.length === 0) return false;
+      inTransition = true;
+      clearAnimClasses();
+
+      // Phase 1: update tile positions on live state + slide DOM
+      for (const m of plan) {
+        const tile = tiles.find(t => t.id === m.id);
+        if (!tile) continue;
+        tile.row = m.toRow;
+        tile.col = m.toCol;
+        if (m.mergeIntoId) tile.willRemove = true;
+        const el = nodeOf(tile);
+        if (el) moveNodeTo(el, m.toRow, m.toCol);
+      }
+
+      // Phase 2 (after slide): resolve merges, spawn, check end-game
+      setTimeout(() => {
+        let gained = 0;
+        for (const m of plan) {
+          if (!m.mergeIntoId) continue;
+          const source = tiles.find(t => t.id === m.id);
+          const surv = tiles.find(t => t.id === m.mergeIntoId);
+          if (source) {
+            const el = nodeOf(source);
+            if (el) el.remove();
+          }
+          if (surv) {
+            surv.value *= 2;
+            gained += surv.value;
+            paintTile(surv, { merge: true, skipMove: true });
+          }
+        }
+        tiles = tiles.filter(t => !t.willRemove);
+        score += gained;
+
+        // Spawn a new tile
+        const t = spawnTile();
+        if (t) paintTile(t, { appear: true });
+
+        inTransition = false;
+        updateCaption();
+
+        // Win
+        if (!wonOnce && tiles.some(x => x.value >= 2048) && mode === 'playing') {
+          wonOnce = true;
+          mode = 'won';
+          showOverlay(true, 'You hit 2048!', 'Keep playing', () => {
+            mode = 'playing'; hideOverlay(); updateCaption();
+          });
+        }
+        // Lose
+        if (!hasMoves()) {
+          if (mode === 'auto') {
+            stopAuto();
+            setTimeout(() => { if (mode === 'auto') { resetForAuto(); startAuto(); } }, 800);
+          } else {
+            mode = 'over';
+            showOverlay(false, 'Game over', 'Try again', () => { startPlaying(); });
+            updateCaption();
+          }
+        }
+      }, RESOLVE_MS);
+      return true;
+    }
+
+    /* ---------- mode transitions ---------- */
+    function setTouchAction() {
+      card.style.touchAction = (mode === 'auto') ? 'pan-y' : 'none';
+    }
+    function startPlaying() {
+      stopAuto();
+      clearBoard();
+      spawnTile(); spawnTile();
+      score = 0;
+      wonOnce = false;
+      mode = 'playing';
+      hideOverlay();
+      tiles.forEach(t => paintTile(t, { appear: true }));
+      updateCaption();
+      setTouchAction();
+      card.focus({ preventScroll: true });
+    }
+    function resetForAuto() {
+      stopAuto();
+      clearBoard();
+      spawnTile(); spawnTile();
+      score = 0;
+      wonOnce = false;
+      mode = 'auto';
+      hideOverlay();
+      tiles.forEach(t => paintTile(t, { appear: true }));
+      updateCaption();
+      setTouchAction();
+    }
+
+    /* ---------- auto-play AI ---------- */
+    function chooseAutoMove() {
+      for (const d of ['down', 'left', 'right', 'up']) {
+        if (planMove(tiles, d).length > 0) return d;
+      }
+      return null;
+    }
+    function autoTick() {
+      if (mode !== 'auto' || inTransition) return;
+      const d = chooseAutoMove();
+      if (d) applyMove(d);
+    }
+    function startAuto() {
+      if (autoTimer || mode !== 'auto') return;
+      autoTimer = setInterval(autoTick, AUTO_TICK_MS);
+    }
+    function stopAuto() {
+      if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    }
+
+    /* ---------- caption ---------- */
+    function updateCaption() {
+      if (!caption) return;
+      if (mode === 'auto') {
+        caption.innerHTML = 'Auto-playing &middot; press <span class="key">&uarr;</span> <span class="key">&larr;</span> <span class="key">&darr;</span> <span class="key">&rarr;</span> or tap to play';
+      } else if (mode === 'playing' || mode === 'won') {
+        caption.innerHTML = 'Score <strong>' + score + '</strong> &middot; <span class="key">&uarr;</span><span class="key">&larr;</span><span class="key">&darr;</span><span class="key">&rarr;</span> to move &middot; <span class="key">R</span> to restart';
+      } else if (mode === 'over') {
+        caption.innerHTML = 'Game over &middot; final score <strong>' + score + '</strong>';
+      }
+    }
+
+    /* ---------- overlay ---------- */
+    let onOverlayClick = null;
+    function showOverlay(win, text, btnText, action) {
+      overMsg.textContent = text;
+      overBtn.textContent = btnText;
+      overlay.classList.toggle('win', !!win);
+      overlay.hidden = false;
+      onOverlayClick = action;
+    }
+    function hideOverlay() {
+      overlay.hidden = true;
+      onOverlayClick = null;
+    }
+    overBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (onOverlayClick) onOverlayClick();
+    });
+
+    /* ---------- input ---------- */
+    function step(dir) {
+      if (mode === 'auto') { startPlaying(); return; }
+      if (mode === 'over') return;
+      applyMove(dir);
+    }
+
+    const KEY_DIR = {
+      ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+      w:'up', W:'up', s:'down', S:'down', a:'left', A:'left', d:'right', D:'right',
+    };
+    document.addEventListener('keydown', (e) => {
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const dir = KEY_DIR[e.key];
+      if (dir) {
+        e.preventDefault();
+        step(dir);
+        return;
+      }
+      if ((e.key === 'r' || e.key === 'R') && mode !== 'auto') {
+        e.preventDefault();
+        startPlaying();
+      }
+    });
+
+    card.addEventListener('click', (e) => {
+      if (overlay && !overlay.hidden && e.target === overBtn) return;
+      if (mode === 'auto') {
+        e.preventDefault();
+        startPlaying();
+      } else {
+        card.focus({ preventScroll: true });
+      }
+    });
+
+    /* ---------- touch (mobile swipe) ---------- */
+    let touchStart = null;
+    let swipeIntent = false;
+    card.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      touchStart = { x: t.clientX, y: t.clientY, time: Date.now() };
+      swipeIntent = false;
+    }, { passive: true });
+    card.addEventListener('touchmove', (e) => {
+      if (!touchStart || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = t.clientX - touchStart.x;
+      const dy = t.clientY - touchStart.y;
+      if (!swipeIntent && Math.max(Math.abs(dx), Math.abs(dy)) > 10) {
+        swipeIntent = true;
+      }
+      // Once a swipe is confirmed and we're in a play mode, block page scroll
+      if (swipeIntent && mode !== 'auto') {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    card.addEventListener('touchend', (e) => {
+      if (!touchStart) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touchStart.x;
+      const dy = t.clientY - touchStart.y;
+      const dt = Date.now() - touchStart.time;
+      touchStart = null;
+      const ax = Math.abs(dx), ay = Math.abs(dy);
+      // Tap (small movement) — let click handler take over
+      if (Math.max(ax, ay) < 24) return;
+      // Swipe in auto mode → switch to fresh playable game (don't apply this swipe)
+      if (mode === 'auto') {
+        startPlaying();
+        return;
+      }
+      // Swipe in play mode → apply the move
+      const dir = (ax > ay) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+      step(dir);
+    });
+
+    /* ---------- visibility, viewport, resize ---------- */
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopAuto();
+      else if (mode === 'auto') startAuto();
+    });
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (mode !== 'auto') return;
+          if (e.isIntersecting) startAuto();
+          else stopAuto();
+        });
+      }, { threshold: 0.1 });
+      io.observe(card);
+    }
+    if ('ResizeObserver' in window) {
+      const ro = new ResizeObserver(() => {
+        if (!measureBoard()) return;
+        tiles.forEach(t => {
+          const el = nodeOf(t);
+          if (!el) return;
+          // No slide animation during resize
+          el.style.transition = 'none';
+          moveNodeTo(el, t.row, t.col);
+          void el.offsetWidth;
+          el.style.transition = '';
+        });
+      });
+      ro.observe(boardBg);
+    }
+
+    /* ---------- boot ---------- */
+    function boot() {
+      if (!measureBoard()) { requestAnimationFrame(boot); return; }
+      resetForAuto();
+      startAuto();
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(boot));
+    } else {
+      requestAnimationFrame(boot);
+    }
+  })();
+
+  /* ============================================================
+     Sticky top bar — hairline border appears after 80px scroll
+     ============================================================ */
+  (function(){
+    const bar = document.getElementById('topbar');
+    if (!bar) return;
+    let ticking = false;
+    function update() {
+      bar.classList.toggle('scrolled', window.scrollY > 80);
+      ticking = false;
+    }
+    window.addEventListener('scroll', () => {
+      if (!ticking) { requestAnimationFrame(update); ticking = true; }
+    }, { passive: true });
+    update();
+  })();
+
+  /* ============================================================
+     §10.4 — platform-aware CTA swap
+     Mac → DMG (default). iOS/Android → mailto-notify.
+     Windows/Linux → "Mac only — star the repo".
+     UA-only detection (navigator.platform is deprecated).
+     ============================================================ */
+  (function(){
+    const ua = navigator.userAgent || '';
+    const touch = navigator.maxTouchPoints || 0;
+    let cls = '';
+    if (/iPad|iPhone|iPod/.test(ua)) cls = 'platform-ios';
+    else if (/Macintosh/.test(ua) && touch > 1) cls = 'platform-ios'; // iPadOS-Safari spoofs Mac UA
+    else if (/Android/.test(ua)) cls = 'platform-android';
+    else if (/Windows/.test(ua)) cls = 'platform-windows';
+    else if (/Linux/.test(ua) && !/Android/.test(ua)) cls = 'platform-linux';
+    else if (/Macintosh|Mac OS X/.test(ua)) cls = 'platform-mac';
+    if (cls) document.body.classList.add(cls);
+  })();
+
+  /* ============================================================
+     Smooth scroll on anchor clicks
+     ============================================================ */
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href').slice(1);
+      if (!id) return;
+      const tgt = document.getElementById(id);
+      if (!tgt) return;
+      e.preventDefault();
+      const y = tgt.getBoundingClientRect().top + window.pageYOffset - 64;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+      history.replaceState(null, '', '#' + id);
+    });
+  });
+</script>
+</body>
+</html>

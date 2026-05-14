@@ -1,0 +1,2196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>2048 Mac · Landing Variants · 2026-05-14</title>
+<meta name="viewport" content="width=2400" />
+<link rel="icon" type="image/png" href="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" />
+
+<style>
+  /* =========================================================
+     CANVAS — outer shell that hosts three landing variants
+     ========================================================= */
+  :root {
+    --canvas-ink: #28221C;
+    --canvas-ink-soft: #6F6258;
+    --canvas-paper: #F6F1E6;
+    --canvas-paper-deep: #ECE3D2;
+    --canvas-hairline: rgba(40, 34, 28, 0.10);
+    --canvas-hairline-strong: rgba(40, 34, 28, 0.18);
+
+    /* Game2048 palette — LIGHT (verbatim from GamePalette.swift / TileView.swift) */
+    --g-bg:         #FAF8EF;
+    --g-text:       #776E65;
+    --g-text-soft:  rgba(119,110,101,0.70);
+    --g-board:      #BBADA0;
+    --g-cell:       #CDC1B4;
+    --g-score-bg:   #BBADA0;
+    --g-score-lbl:  #EEE4DA;
+    --g-button:     #8F7A66;
+    --g-button-ink: #F9F6F0;
+    --g-gold:       #EDC22E;
+    --g-gold-deep:  #C99700;
+
+    /* Tile colours (LIGHT) — exact decimals → hex from TileView.swift */
+    --t-2:    #EEE4DA;
+    --t-4:    #EDE0C8;
+    --t-8:    #F2B179;
+    --t-16:   #F59563;
+    --t-32:   #F67C5F;
+    --t-64:   #F65E3B;
+    --t-128:  #EDCF72;
+    --t-256:  #EDCC61;
+    --t-512:  #EDC850;
+    --t-1024: #EDC53F;
+    --t-2048: #EDC22E;
+  }
+
+  *,*::before,*::after { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; background: var(--canvas-paper); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", Avenir, system-ui, sans-serif;
+    color: var(--canvas-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-width: 2400px;
+  }
+
+  /* ---------- Canvas header ---------- */
+  .canvas-header {
+    padding: 56px 64px 28px;
+    border-bottom: 1px solid var(--canvas-hairline);
+    display: grid;
+    grid-template-columns: 1.2fr 2fr;
+    gap: 64px;
+    align-items: end;
+  }
+  .canvas-header .title-block .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--canvas-ink-soft);
+    margin-bottom: 16px;
+  }
+  .canvas-header h1 {
+    font-size: 38px;
+    line-height: 1.05;
+    margin: 0 0 12px;
+    letter-spacing: -0.018em;
+    font-weight: 700;
+    color: var(--canvas-ink);
+  }
+  .canvas-header h1 em {
+    font-style: normal;
+    color: var(--g-gold-deep);
+  }
+  .canvas-header .sub {
+    font-size: 15px;
+    color: var(--canvas-ink-soft);
+    line-height: 1.55;
+    max-width: 56ch;
+    margin: 0;
+  }
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  .legend-card {
+    background: var(--canvas-paper-deep);
+    border: 1px solid var(--canvas-hairline);
+    border-radius: 14px;
+    padding: 18px 20px 20px;
+  }
+  .legend-card .tag {
+    display: inline-block;
+    font-family: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    background: rgba(40,34,28,0.07);
+    border-radius: 4px;
+    color: var(--canvas-ink);
+    margin-bottom: 10px;
+  }
+  .legend-card .tag.gold { background: rgba(237,194,46,0.20); color: var(--g-gold-deep); }
+  .legend-card h3 {
+    font-size: 15px;
+    margin: 0 0 8px;
+    letter-spacing: -0.005em;
+  }
+  .legend-card .axes {
+    font-size: 12px;
+    color: var(--canvas-ink-soft);
+    line-height: 1.55;
+  }
+  .legend-card .axes b {
+    color: var(--canvas-ink);
+    font-weight: 600;
+  }
+
+  /* ---------- Variants row ---------- */
+  .variants-row {
+    display: flex;
+    gap: 40px;
+    padding: 40px 64px 32px;
+    align-items: flex-start;
+  }
+  .variant {
+    width: 720px;
+    flex: 0 0 720px;
+  }
+  .variant .badge-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 14px;
+    font-family: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .variant .badge-row .pill {
+    padding: 4px 8px;
+    background: var(--canvas-paper-deep);
+    border-radius: 4px;
+    color: var(--canvas-ink);
+  }
+  .variant .badge-row .pill.label {
+    background: var(--canvas-ink);
+    color: var(--canvas-paper);
+  }
+  .variant .frame-shell {
+    width: 720px;
+    border-radius: 18px;
+    box-shadow:
+      0 1px 0 rgba(40,34,28,0.04),
+      0 30px 60px -25px rgba(40,34,28,0.25),
+      0 12px 24px -16px rgba(40,34,28,0.18);
+    background: var(--canvas-paper);
+    border: 1px solid var(--canvas-hairline);
+    overflow: hidden;
+    position: relative;
+  }
+  /* Browser-chrome strip at the top of each device frame */
+  .frame-chrome {
+    height: 28px;
+    background: linear-gradient(180deg, #E9E1D0 0%, #DCD2BD 100%);
+    border-bottom: 1px solid var(--canvas-hairline);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 6px;
+  }
+  .frame-chrome .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(40,34,28,0.18);
+  }
+  .frame-chrome .url {
+    flex: 1;
+    text-align: center;
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--canvas-ink-soft);
+    letter-spacing: 0.04em;
+  }
+
+  /* The 1280px native landing scaled down via JS-set wrapper height */
+  .scaled {
+    width: 1280px;
+    transform: scale(0.5390625); /* 690 / 1280 = 0.539 inner-content width */
+    transform-origin: top left;
+  }
+  .scaled-wrap {
+    width: 690px;  /* 720 - 30 for padding inside frame */
+    margin: 0 15px 15px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ---------- Mobile preview row ---------- */
+  .mobile-row {
+    display: flex;
+    gap: 40px;
+    padding: 24px 64px 72px;
+    align-items: flex-start;
+  }
+  .mobile-frame {
+    width: 720px;
+    flex: 0 0 720px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .mobile-frame .label {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--canvas-ink-soft);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .phone {
+    width: 390px;
+    border-radius: 44px;
+    background: #1c1c1f;
+    padding: 14px;
+    box-shadow:
+      0 30px 60px -25px rgba(40,34,28,0.30),
+      0 1px 0 rgba(255,255,255,0.04) inset,
+      0 0 0 1px rgba(0,0,0,0.6);
+  }
+  .phone-screen {
+    width: 362px;
+    height: 760px;
+    border-radius: 32px;
+    overflow: hidden;
+    background: var(--g-bg);
+    position: relative;
+  }
+  .phone-notch {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 28px;
+    background: #0b0b0d;
+    border-radius: 16px;
+    z-index: 50;
+  }
+  .phone-status {
+    position: absolute;
+    top: 14px;
+    left: 0; right: 0;
+    height: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    z-index: 60;
+    font-family: -apple-system, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--g-text);
+  }
+  .phone-status .right {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .phone-status .battery {
+    width: 22px; height: 10px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    position: relative;
+  }
+  .phone-status .battery::after {
+    content: ''; position: absolute; right: -3px; top: 2px;
+    width: 2px; height: 4px; background: currentColor; border-radius: 0 1px 1px 0;
+  }
+  .phone-status .battery::before {
+    content: ''; position: absolute; left: 1px; top: 1px;
+    width: 16px; height: 6px; background: currentColor;
+  }
+
+  /* ===========================================================
+     LANDING — the actual page rendered inside each frame
+     (rendered at NATIVE 1280px desktop layout, scaled by parent)
+     =========================================================== */
+  .landing {
+    width: 1280px;
+    background: var(--g-bg);
+    color: var(--g-text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", Avenir, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  /* Top bar */
+  .l-topbar {
+    height: 64px;
+    padding: 0 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(119,110,101,0.10);
+    background: rgba(250,248,239,0.92);
+    backdrop-filter: blur(8px);
+  }
+  .l-wordmark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.005em;
+    color: var(--g-text);
+  }
+  .l-wordmark img {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: block;
+  }
+  .l-nav {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    font-size: 14px;
+    color: var(--g-text);
+  }
+  .l-nav a {
+    color: inherit;
+    text-decoration: none;
+    opacity: 0.8;
+  }
+  .l-nav .nav-cta {
+    padding: 8px 14px;
+    background: var(--g-button);
+    color: var(--g-button-ink);
+    border-radius: 8px;
+    font-weight: 600;
+    opacity: 1;
+  }
+
+  /* Hero — base */
+  .l-hero {
+    padding: 64px 56px 56px;
+  }
+  .l-headline {
+    font-size: 56px;
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.05;
+    color: var(--g-text);
+    margin: 0 0 18px;
+  }
+  .l-headline .lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    vertical-align: -6px;
+  }
+  .l-headline .lockup .lockup-tile {
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    background: var(--g-gold);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.005em;
+    box-shadow: 0 6px 14px -6px rgba(237,194,46,0.5);
+  }
+  .l-subhead {
+    font-size: 19px;
+    color: var(--g-text-soft);
+    margin: 0 0 32px;
+    max-width: 32ch;
+    line-height: 1.5;
+  }
+  .l-cta-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .l-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--g-button);
+    color: var(--g-button-ink);
+    padding: 16px 22px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 12px 28px -10px rgba(143,122,102,0.45);
+    letter-spacing: -0.005em;
+  }
+  .l-cta .meta {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.78;
+    letter-spacing: 0.04em;
+    margin-left: 2px;
+  }
+  .l-cta-secondary {
+    color: var(--g-text);
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.78;
+    border-bottom: 1px solid rgba(119,110,101,0.30);
+    padding-bottom: 1px;
+  }
+  .l-trust {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--g-text-soft);
+    letter-spacing: 0.005em;
+  }
+  .l-trust::before {
+    content: '';
+    display: inline-block;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--g-gold);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  /* Variant A — split hero (text-left, board-right) */
+  .l-hero.split {
+    display: grid;
+    grid-template-columns: 1fr 480px;
+    gap: 56px;
+    align-items: center;
+  }
+
+  /* Variant B — centered single column */
+  .l-hero.centered {
+    text-align: center;
+    padding-bottom: 48px;
+  }
+  .l-hero.centered .l-headline,
+  .l-hero.centered .l-subhead {
+    margin-left: auto; margin-right: auto;
+    max-width: none;
+  }
+  .l-hero.centered .l-subhead { max-width: 50ch; }
+  .l-hero.centered .l-cta-row {
+    justify-content: center;
+  }
+  .l-hero.centered .l-trust { justify-content: center; }
+  .l-hero.centered .l-trust-wrap {
+    display: flex; justify-content: center; margin-top: 4px;
+  }
+  .l-hero.centered .board-wrap {
+    margin-top: 44px;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Variant C — board as hero (full-bleed) */
+  .l-hero.full-board {
+    padding: 0;
+    position: relative;
+    min-height: 660px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  .l-hero.full-board .fb-bg {
+    position: absolute;
+    inset: 0;
+    background: var(--g-board);
+    z-index: 1;
+  }
+  .l-hero.full-board .fb-bg::before {
+    /* faded 4×4 grid hint */
+    content: '';
+    position: absolute;
+    inset: 80px 56px 80px auto;
+    width: 480px;
+    border-radius: 16px;
+    background: var(--g-board);
+    z-index: 2;
+  }
+  .l-hero.full-board .fb-content {
+    position: relative;
+    z-index: 3;
+    padding: 0 56px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 56px;
+    align-items: center;
+  }
+  .l-hero.full-board .l-headline,
+  .l-hero.full-board .l-subhead {
+    color: #F9F4E4;
+  }
+  .l-hero.full-board .l-subhead { color: rgba(249,244,228,0.78); }
+  .l-hero.full-board .l-cta {
+    background: var(--g-gold);
+    color: #2D1F00;
+    box-shadow: 0 14px 30px -10px rgba(237,194,46,0.55);
+  }
+  .l-hero.full-board .l-cta-secondary {
+    color: rgba(249,244,228,0.85);
+    border-color: rgba(249,244,228,0.30);
+  }
+  .l-hero.full-board .l-trust {
+    color: rgba(249,244,228,0.72);
+  }
+  .l-hero.full-board .l-trust::before {
+    background: var(--g-gold);
+  }
+
+  /* ---- Live board ---- */
+  .board-card {
+    background: var(--g-board);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 18px 40px -16px rgba(94,80,69,0.45);
+    position: relative;
+    display: inline-block;
+  }
+  .board-grid {
+    width: 452px;
+    height: 452px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .board-cell {
+    background: var(--g-cell);
+    border-radius: 8px;
+    position: relative;
+  }
+  .tile {
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #776E65;
+    font-family: -apple-system, "SF Pro Rounded", system-ui, sans-serif;
+    transition: opacity 220ms ease, transform 240ms cubic-bezier(.2,.8,.2,1);
+    transform: scale(1);
+    opacity: 1;
+  }
+  .tile.appear {
+    animation: tilePop 220ms cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes tilePop {
+    from { transform: scale(0.4); opacity: 0; }
+    50%  { transform: scale(1.08); opacity: 1; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+  .tile[data-v="2"]    { background: var(--t-2);    color: #776E65; font-size: 36px; }
+  .tile[data-v="4"]    { background: var(--t-4);    color: #776E65; font-size: 36px; }
+  .tile[data-v="8"]    { background: var(--t-8);    color: #F9F6F0; font-size: 36px; }
+  .tile[data-v="16"]   { background: var(--t-16);   color: #F9F6F0; font-size: 32px; }
+  .tile[data-v="32"]   { background: var(--t-32);   color: #F9F6F0; font-size: 32px; }
+  .tile[data-v="64"]   { background: var(--t-64);   color: #F9F6F0; font-size: 32px; }
+  .tile[data-v="128"]  { background: var(--t-128);  color: #F9F6F0; font-size: 28px; }
+  .tile[data-v="256"]  { background: var(--t-256);  color: #F9F6F0; font-size: 28px; }
+  .tile[data-v="512"]  { background: var(--t-512);  color: #F9F6F0; font-size: 28px; }
+  .tile[data-v="1024"] { background: var(--t-1024); color: #F9F6F0; font-size: 22px; }
+  .tile[data-v="2048"] { background: var(--t-2048); color: #F9F6F0; font-size: 22px;
+                         box-shadow: 0 0 0 3px rgba(237,194,46,0.30); }
+
+  /* Affordance overlay on the board (varies by variant) */
+  .board-caption {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--g-text-soft);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .board-caption.tap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--g-cell);
+    color: var(--g-text);
+    padding: 6px 12px;
+    border-radius: 999px;
+    text-transform: none;
+    letter-spacing: 0.005em;
+    font-size: 13px;
+    margin-top: 12px;
+  }
+  .board-caption.tap::before {
+    content: '▶';
+    font-size: 10px;
+  }
+  .board-caption.keys {
+    display: inline-flex; gap: 6px; align-items: center; margin-top: 12px;
+  }
+  .key {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 11px;
+    background: rgba(249,244,228,0.16);
+    color: rgba(249,244,228,0.95);
+    padding: 3px 7px;
+    border-radius: 4px;
+    border: 1px solid rgba(249,244,228,0.22);
+    min-width: 22px;
+    text-align: center;
+  }
+
+  /* Feature chips */
+  .l-features {
+    padding: 36px 56px 16px;
+  }
+  .l-features-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--g-cell);
+    color: var(--g-text);
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: -0.002em;
+  }
+  .chip::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--g-button);
+  }
+  .chip.gold::before { background: var(--g-gold); }
+
+  /* How-to-play */
+  .l-howto {
+    padding: 48px 56px 24px;
+  }
+  .l-howto h2 {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--g-text-soft);
+    margin: 0 0 24px;
+    font-weight: 600;
+  }
+  .howto-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .howto-card {
+    background: rgba(205,193,180,0.36);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .howto-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; height: 24px;
+    background: var(--g-button);
+    color: var(--g-button-ink);
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .howto-card h3 {
+    font-size: 17px;
+    margin: 0 0 6px;
+    color: var(--g-text);
+    letter-spacing: -0.005em;
+  }
+  .howto-card p {
+    font-size: 13.5px;
+    color: var(--g-text-soft);
+    margin: 0 0 16px;
+    line-height: 1.5;
+  }
+  /* tiny tile illustrations inside how-to */
+  .howto-mini {
+    display: flex; align-items: center; gap: 8px;
+    height: 56px;
+  }
+  .howto-mini .mini-tile {
+    width: 44px; height: 44px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .howto-mini .arrow {
+    color: var(--g-text-soft);
+    font-size: 18px;
+  }
+
+  /* Download section */
+  .l-download {
+    padding: 32px 56px 56px;
+  }
+  .l-download h2 {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--g-text-soft);
+    margin: 0 0 24px;
+    font-weight: 600;
+  }
+  .download-grid {
+    display: grid;
+    gap: 20px;
+  }
+  .download-grid.two { grid-template-columns: 1.15fr 1fr; }
+  .download-grid.three { grid-template-columns: repeat(3, 1fr); }
+  .download-grid.one { grid-template-columns: 1fr; max-width: 560px; }
+
+  .dl-card {
+    background: rgba(205,193,180,0.32);
+    border: 1px solid rgba(119,110,101,0.08);
+    border-radius: 14px;
+    padding: 22px 24px 20px;
+    position: relative;
+  }
+  .dl-card.primary {
+    background: linear-gradient(180deg, rgba(237,194,46,0.16) 0%, rgba(237,194,46,0.06) 100%);
+    border: 1px solid rgba(237,194,46,0.40);
+  }
+  .dl-card.muted {
+    background: rgba(205,193,180,0.20);
+    color: var(--g-text-soft);
+  }
+  .dl-card .badge {
+    position: absolute;
+    top: 18px; right: 20px;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--g-gold-deep);
+    background: rgba(237,194,46,0.20);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .dl-card .badge.neutral {
+    color: var(--g-text-soft);
+    background: rgba(119,110,101,0.08);
+  }
+  .dl-card .ext {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--g-text-soft);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .dl-card h3 {
+    font-size: 21px;
+    margin: 0 0 4px;
+    color: var(--g-text);
+    letter-spacing: -0.01em;
+  }
+  .dl-card .descr {
+    font-size: 13.5px;
+    color: var(--g-text-soft);
+    margin: 0 0 18px;
+    line-height: 1.5;
+  }
+  .dl-card .dl-meta {
+    display: flex;
+    gap: 14px;
+    font-size: 12px;
+    color: var(--g-text-soft);
+    margin-bottom: 16px;
+    font-family: "SF Mono", ui-monospace, monospace;
+    letter-spacing: 0.02em;
+  }
+  .dl-card .dl-meta span::before {
+    content: '·';
+    margin-right: 6px;
+    opacity: 0.5;
+  }
+  .dl-card .dl-meta span:first-child::before { content: ''; margin-right: 0; }
+  .dl-card .dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 18px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: -0.002em;
+  }
+  .dl-card.primary .dl-btn {
+    background: var(--g-button);
+    color: var(--g-button-ink);
+  }
+  .dl-card .dl-btn.secondary {
+    background: rgba(119,110,101,0.10);
+    color: var(--g-text);
+  }
+  .dl-card .dl-btn.disabled {
+    background: rgba(119,110,101,0.06);
+    color: var(--g-text-soft);
+    border: 1px dashed rgba(119,110,101,0.30);
+    cursor: not-allowed;
+  }
+  .dl-card .sha {
+    margin-top: 14px;
+    font-size: 11px;
+    color: var(--g-text-soft);
+    font-family: "SF Mono", ui-monospace, monospace;
+    cursor: pointer;
+  }
+  .dl-card .sha::before {
+    content: '▸ ';
+    opacity: 0.6;
+  }
+  .more-options {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--g-text-soft);
+    letter-spacing: 0.005em;
+  }
+  .more-options a {
+    color: var(--g-text);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(119,110,101,0.30);
+  }
+
+  /* Footer */
+  .l-footer {
+    padding: 28px 56px 36px;
+    border-top: 1px solid rgba(119,110,101,0.10);
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 40px;
+    font-size: 13px;
+    color: var(--g-text-soft);
+  }
+  .l-footer .col h4 {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--g-text);
+    margin: 0 0 12px;
+    font-weight: 600;
+  }
+  .l-footer .col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    line-height: 1.9;
+  }
+  .l-footer .col a {
+    color: var(--g-text-soft);
+    text-decoration: none;
+  }
+  .l-footer .tagline {
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 38ch;
+  }
+  .l-footer .build {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    line-height: 1.8;
+    letter-spacing: 0.02em;
+  }
+  .footer-mark {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 17px; color: var(--g-text);
+  }
+  .footer-mark img { width: 28px; height: 28px; border-radius: 6px; }
+
+  /* =========================================================
+     MOBILE landing — rendered inside the phone-screen
+     ========================================================= */
+  .m-landing {
+    width: 362px;
+    background: var(--g-bg);
+    color: var(--g-text);
+    font-family: -apple-system, "SF Pro Rounded", system-ui, sans-serif;
+    padding: 44px 16px 24px;
+    overflow-y: auto;
+    height: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+  .m-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(119,110,101,0.10);
+    margin-bottom: 22px;
+  }
+  .m-topbar .l-wordmark { font-size: 15px; }
+  .m-topbar .l-wordmark img { width: 22px; height: 22px; border-radius: 5px; }
+  .m-topbar .m-cta-chip {
+    background: var(--g-button);
+    color: var(--g-button-ink);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .m-landing h1 {
+    font-size: 30px;
+    line-height: 1.05;
+    letter-spacing: -0.018em;
+    font-weight: 800;
+    margin: 12px 0 10px;
+    color: var(--g-text);
+  }
+  .m-landing h1 .m-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    vertical-align: -4px;
+  }
+  .m-landing h1 .m-lockup .tile-gold {
+    width: 38px; height: 38px;
+    border-radius: 6px;
+    background: var(--g-gold);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .m-landing .m-sub {
+    color: var(--g-text-soft);
+    font-size: 14px;
+    margin: 0 0 18px;
+    line-height: 1.5;
+  }
+  .m-landing .m-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--g-button);
+    color: var(--g-button-ink);
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    width: 100%;
+  }
+  .m-trust {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--g-text-soft);
+    margin-top: 10px;
+  }
+  .m-trust::before {
+    content: '';
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--g-gold);
+  }
+
+  .m-board-card {
+    margin-top: 22px;
+    background: var(--g-board);
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: 0 12px 28px -14px rgba(94,80,69,0.40);
+  }
+  .m-board-grid {
+    width: 100%;
+    aspect-ratio: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .m-board-grid .board-cell { border-radius: 6px; }
+  .m-board-grid .tile { border-radius: 6px; }
+  .m-board-grid .tile[data-v="2"]    { font-size: 26px; }
+  .m-board-grid .tile[data-v="4"]    { font-size: 26px; }
+  .m-board-grid .tile[data-v="8"]    { font-size: 26px; }
+  .m-board-grid .tile[data-v="16"]   { font-size: 24px; }
+  .m-board-grid .tile[data-v="32"]   { font-size: 24px; }
+  .m-board-grid .tile[data-v="64"]   { font-size: 22px; }
+  .m-board-grid .tile[data-v="128"]  { font-size: 20px; }
+  .m-board-grid .tile[data-v="256"]  { font-size: 20px; }
+  .m-board-grid .tile[data-v="512"]  { font-size: 20px; }
+  .m-board-grid .tile[data-v="1024"] { font-size: 15px; }
+  .m-board-grid .tile[data-v="2048"] { font-size: 15px; }
+
+  .m-features {
+    margin-top: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .m-features .chip {
+    font-size: 11.5px;
+    padding: 6px 10px;
+  }
+  .m-howto {
+    margin-top: 28px;
+  }
+  .m-howto h2 {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--g-text-soft);
+    margin: 0 0 14px;
+  }
+  .m-howto-card {
+    background: rgba(205,193,180,0.36);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .m-howto-card .m-step {
+    width: 22px; height: 22px;
+    background: var(--g-button);
+    color: var(--g-button-ink);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .m-howto-card h3 {
+    font-size: 14px;
+    margin: 0 0 2px;
+  }
+  .m-howto-card p {
+    font-size: 12px;
+    color: var(--g-text-soft);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .m-download {
+    margin-top: 28px;
+  }
+  .m-download h2 {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--g-text-soft);
+    margin: 0 0 14px;
+  }
+  .m-dl-card {
+    background: rgba(205,193,180,0.34);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 10px;
+  }
+  .m-dl-card.primary {
+    background: linear-gradient(180deg, rgba(237,194,46,0.16) 0%, rgba(237,194,46,0.06) 100%);
+    border: 1px solid rgba(237,194,46,0.40);
+  }
+  .m-dl-card .ext {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--g-text-soft);
+    margin-bottom: 4px;
+  }
+  .m-dl-card h3 { font-size: 16px; margin: 0 0 2px; }
+  .m-dl-card p  { font-size: 12px; color: var(--g-text-soft); margin: 0 0 12px; line-height: 1.4; }
+  .m-dl-card .dl-meta {
+    font-size: 11px;
+    font-family: "SF Mono", ui-monospace, monospace;
+    color: var(--g-text-soft);
+    margin-bottom: 10px;
+  }
+  .m-dl-card a.dl-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--g-button);
+    color: var(--g-button-ink);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .m-footer {
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(119,110,101,0.10);
+    font-size: 11px;
+    color: var(--g-text-soft);
+    line-height: 1.7;
+  }
+
+  /* Notes block at bottom of canvas */
+  .canvas-notes {
+    padding: 32px 64px 80px;
+    border-top: 1px solid var(--canvas-hairline);
+    background: var(--canvas-paper-deep);
+    margin-top: 16px;
+  }
+  .canvas-notes h3 {
+    margin: 0 0 14px;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--canvas-ink);
+  }
+  .canvas-notes .note-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 40px;
+    font-size: 13.5px;
+    color: var(--canvas-ink-soft);
+    line-height: 1.6;
+  }
+  .canvas-notes .note-cols h4 {
+    color: var(--canvas-ink);
+    font-size: 13px;
+    margin: 0 0 6px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 700;
+  }
+  .canvas-notes ul {
+    margin: 0; padding-left: 18px;
+  }
+  .canvas-notes code {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 12px;
+    background: rgba(40,34,28,0.07);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* Section label between canvas blocks */
+  .section-label {
+    padding: 24px 64px 0;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--canvas-ink-soft);
+    font-weight: 600;
+  }
+  .section-label::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: var(--canvas-hairline);
+    margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- =========================================================
+     CANVAS HEADER
+     ========================================================= -->
+<header class="canvas-header">
+  <div class="title-block">
+    <div class="eyebrow">UX-Spec 2026-05-14 · §8.4 hi-fi-static variants</div>
+    <h1>2048 Mac landing<br/>— three side-by-side <em>variants</em>.</h1>
+    <p class="sub">
+      Same warm-paper palette, same notarized binary. Three different bets on the §8.4 dimensions —
+      hero composition, live-board behaviour, download-card emphasis. Density: <b style="color:var(--canvas-ink)">restrained</b>.
+      Narrative role: <b style="color:var(--canvas-ink)">hero</b>. Distance: <b style="color:var(--canvas-ink)">1m laptop</b>. Temperature: <b style="color:var(--canvas-ink)">warm</b>.
+    </p>
+  </div>
+  <div class="legend">
+    <div class="legend-card">
+      <span class="tag">Variant A</span>
+      <h3>Split &amp; Trusted</h3>
+      <div class="axes">
+        <b>Hero</b> · text-left + board-right<br/>
+        <b>Board</b> · auto-loop only<br/>
+        <b>Download</b> · DMG primary + ZIP secondary
+      </div>
+    </div>
+    <div class="legend-card">
+      <span class="tag">Variant B</span>
+      <h3>Centered Focus</h3>
+      <div class="axes">
+        <b>Hero</b> · centered, board below CTA<br/>
+        <b>Board</b> · auto-loop then tap-to-play<br/>
+        <b>Download</b> · DMG only (ZIP in disclosure)
+      </div>
+    </div>
+    <div class="legend-card">
+      <span class="tag gold">Variant C</span>
+      <h3>Board-as-Hero</h3>
+      <div class="axes">
+        <b>Hero</b> · full-bleed board, overlaid headline<br/>
+        <b>Board</b> · fully playable from first paint<br/>
+        <b>Download</b> · DMG · ZIP · iOS, equal row
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="section-label">Desktop · ≥1280 px · rendered at native 1280 px and visually scaled to fit canvas</div>
+
+<!-- =========================================================
+     DESKTOP VARIANTS
+     ========================================================= -->
+<section class="variants-row">
+
+  <!-- ========== VARIANT A ========== -->
+  <article class="variant" data-variant="A">
+    <div class="badge-row">
+      <span class="pill label">Variant A</span>
+      <span class="pill">Split</span>
+      <span class="pill">Auto-loop</span>
+      <span class="pill">DMG + ZIP</span>
+    </div>
+    <div class="frame-shell">
+      <div class="frame-chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">2048.kyzdes.dev</span>
+      </div>
+      <div class="scaled-wrap">
+      <div class="scaled">
+        <div class="landing">
+
+          <!-- topbar -->
+          <header class="l-topbar">
+            <a class="l-wordmark" href="#">
+              <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+              <span>2048</span>
+            </a>
+            <nav class="l-nav">
+              <a href="#features">Features</a>
+              <a href="#download">Download</a>
+              <a href="#github">GitHub</a>
+              <a class="nav-cta" href="#download">Download · DMG</a>
+            </nav>
+          </header>
+
+          <!-- hero -->
+          <section class="l-hero split">
+            <div class="hero-text">
+              <h1 class="l-headline">
+                Join the tiles.<br/>
+                Get to
+                <span class="lockup">
+                  <span class="lockup-tile">2048</span>
+                </span>
+              </h1>
+              <p class="l-subhead">A native, notarized, ad-free 2048 for macOS. Free. Open source. No tabs, no telemetry.</p>
+              <div class="l-cta-row">
+                <a class="l-cta" href="#download">
+                  <span>Download for Mac</span>
+                  <span class="meta">DMG · 2.4 MB · v1.0</span>
+                </a>
+                <a class="l-cta-secondary" href="#download">or get the ZIP</a>
+              </div>
+              <span class="l-trust">Notarized by Apple · Developer ID Viacheslav Kuznetsov</span>
+            </div>
+            <div class="hero-board">
+              <div class="board-card">
+                <div class="board-grid" data-board="a"></div>
+              </div>
+              <div class="board-caption" style="margin-top: 14px;">Auto-playing · 20s loop</div>
+            </div>
+          </section>
+
+          <!-- feature chips -->
+          <section class="l-features" id="features">
+            <div class="l-features-row">
+              <span class="chip gold">Native macOS</span>
+              <span class="chip">60 fps</span>
+              <span class="chip">Free</span>
+              <span class="chip">Open source</span>
+              <span class="chip">No ads</span>
+              <span class="chip">Light + Dark</span>
+              <span class="chip">Keyboard + Trackpad</span>
+            </div>
+          </section>
+
+          <!-- how-to-play -->
+          <section class="l-howto">
+            <h2>How to play</h2>
+            <div class="howto-grid">
+              <div class="howto-card">
+                <span class="howto-step">1</span>
+                <h3>Swipe</h3>
+                <p>Arrow keys or trackpad swipes nudge every tile in one direction at once.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-2);color:#776E65;">2</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-2);color:#776E65;">2</div>
+                </div>
+              </div>
+              <div class="howto-card">
+                <span class="howto-step">2</span>
+                <h3>Merge</h3>
+                <p>Two equal tiles collide and become one tile with twice the value.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-4);color:#776E65;">4</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-8);color:#F9F6F0;">8</div>
+                </div>
+              </div>
+              <div class="howto-card">
+                <span class="howto-step">3</span>
+                <h3>Reach 2048</h3>
+                <p>Keep merging. The gold tile is your reward.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-1024);color:#F9F6F0;font-size:13px;">1024</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-2048);color:#F9F6F0;font-size:13px;box-shadow:0 0 0 2px rgba(237,194,46,0.40);">2048</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- download -->
+          <section class="l-download" id="download">
+            <h2>Download</h2>
+            <div class="download-grid two">
+              <div class="dl-card primary">
+                <span class="badge">Recommended</span>
+                <div class="ext">.dmg · signed &amp; notarized</div>
+                <h3>Game2048Mac.dmg</h3>
+                <p class="descr">Drag-and-drop installer. macOS opens it straight from the Downloads folder.</p>
+                <div class="dl-meta">
+                  <span>2.4 MB</span>
+                  <span>macOS 14.0+</span>
+                  <span>v1.0 (build 1)</span>
+                </div>
+                <a class="dl-btn" href="#">Download · DMG</a>
+                <div class="sha">SHA-256 · 9f4a…c0e2</div>
+              </div>
+              <div class="dl-card">
+                <span class="badge neutral">Sparkle-ready</span>
+                <div class="ext">.zip · code-signed</div>
+                <h3>Game2048Mac.zip</h3>
+                <p class="descr">For auto-update tooling, sandbox runners, or if your browser blocks DMG files.</p>
+                <div class="dl-meta">
+                  <span>2.3 MB</span>
+                  <span>macOS 14.0+</span>
+                  <span>v1.0 (build 1)</span>
+                </div>
+                <a class="dl-btn secondary" href="#">Download · ZIP</a>
+                <div class="sha">SHA-256 · 71b3…ad4f</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- footer -->
+          <footer class="l-footer">
+            <div class="col">
+              <div class="footer-mark">
+                <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+                <span>2048</span>
+              </div>
+              <p class="tagline">It's 2048. For Mac. Free.<br/>One window, no telemetry, no tabs.</p>
+            </div>
+            <div class="col">
+              <h4>Links</h4>
+              <ul>
+                <li><a href="#">GitHub repo</a></li>
+                <li><a href="#">License · MIT</a></li>
+                <li><a href="#">Privacy · we collect nothing</a></li>
+              </ul>
+            </div>
+            <div class="col">
+              <h4>Build</h4>
+              <div class="build">
+                v1.0 (build 1)<br/>
+                Notarized · Developer ID<br/>
+                Built with SwiftUI
+              </div>
+            </div>
+          </footer>
+
+        </div>
+      </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- ========== VARIANT B ========== -->
+  <article class="variant" data-variant="B">
+    <div class="badge-row">
+      <span class="pill label">Variant B</span>
+      <span class="pill">Centered</span>
+      <span class="pill">Tap-to-play</span>
+      <span class="pill">DMG only</span>
+    </div>
+    <div class="frame-shell">
+      <div class="frame-chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">2048.kyzdes.dev</span>
+      </div>
+      <div class="scaled-wrap">
+      <div class="scaled">
+        <div class="landing">
+
+          <header class="l-topbar">
+            <a class="l-wordmark" href="#">
+              <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+              <span>2048</span>
+            </a>
+            <nav class="l-nav">
+              <a href="#features">Features</a>
+              <a href="#download">Download</a>
+              <a href="#github">GitHub</a>
+              <a class="nav-cta" href="#download">Download · DMG</a>
+            </nav>
+          </header>
+
+          <section class="l-hero centered">
+            <h1 class="l-headline">
+              Join the tiles.<br/>
+              Get to
+              <span class="lockup">
+                <span class="lockup-tile">2048</span>
+              </span>
+            </h1>
+            <p class="l-subhead">A native, notarized, ad-free 2048 for macOS. Free. Open source. No tabs, no telemetry.</p>
+            <div class="l-cta-row">
+              <a class="l-cta" href="#download">
+                <span>Download for Mac</span>
+                <span class="meta">DMG · 2.4 MB · v1.0</span>
+              </a>
+            </div>
+            <div class="l-trust-wrap">
+              <span class="l-trust">Notarized by Apple · Developer ID Viacheslav Kuznetsov</span>
+            </div>
+            <div class="board-wrap">
+              <div>
+                <div class="board-card">
+                  <div class="board-grid" data-board="b"></div>
+                </div>
+                <div style="text-align:center;">
+                  <span class="board-caption tap">Tap to play</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="l-features" id="features">
+            <div class="l-features-row" style="justify-content:center;">
+              <span class="chip gold">Native macOS</span>
+              <span class="chip">60 fps</span>
+              <span class="chip">Free</span>
+              <span class="chip">Open source</span>
+              <span class="chip">No ads</span>
+              <span class="chip">Light + Dark</span>
+              <span class="chip">Keyboard + Trackpad</span>
+            </div>
+          </section>
+
+          <section class="l-howto">
+            <h2>How to play</h2>
+            <div class="howto-grid">
+              <div class="howto-card">
+                <span class="howto-step">1</span>
+                <h3>Swipe</h3>
+                <p>Arrow keys or trackpad swipes nudge every tile in one direction at once.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-2);color:#776E65;">2</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-2);color:#776E65;">2</div>
+                </div>
+              </div>
+              <div class="howto-card">
+                <span class="howto-step">2</span>
+                <h3>Merge</h3>
+                <p>Two equal tiles collide and become one tile with twice the value.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-4);color:#776E65;">4</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-8);color:#F9F6F0;">8</div>
+                </div>
+              </div>
+              <div class="howto-card">
+                <span class="howto-step">3</span>
+                <h3>Reach 2048</h3>
+                <p>Keep merging. The gold tile is your reward.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-1024);color:#F9F6F0;font-size:13px;">1024</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-2048);color:#F9F6F0;font-size:13px;box-shadow:0 0 0 2px rgba(237,194,46,0.40);">2048</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="l-download" id="download">
+            <h2>Download</h2>
+            <div class="download-grid one" style="margin: 0 auto;">
+              <div class="dl-card primary">
+                <span class="badge">Recommended</span>
+                <div class="ext">.dmg · signed &amp; notarized</div>
+                <h3>Game2048Mac.dmg</h3>
+                <p class="descr">Drag-and-drop installer. macOS opens it straight from the Downloads folder. macOS 14.0+ required.</p>
+                <div class="dl-meta">
+                  <span>2.4 MB</span>
+                  <span>macOS 14.0+</span>
+                  <span>v1.0 (build 1)</span>
+                </div>
+                <a class="dl-btn" href="#">Download · DMG</a>
+                <div class="sha">SHA-256 · 9f4a…c0e2</div>
+              </div>
+              <div class="more-options">
+                <a href="#">More options · ZIP for Sparkle, sandbox runners</a>
+              </div>
+            </div>
+          </section>
+
+          <footer class="l-footer">
+            <div class="col">
+              <div class="footer-mark">
+                <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+                <span>2048</span>
+              </div>
+              <p class="tagline">It's 2048. For Mac. Free.<br/>One window, no telemetry, no tabs.</p>
+            </div>
+            <div class="col">
+              <h4>Links</h4>
+              <ul>
+                <li><a href="#">GitHub repo</a></li>
+                <li><a href="#">License · MIT</a></li>
+                <li><a href="#">Privacy · we collect nothing</a></li>
+              </ul>
+            </div>
+            <div class="col">
+              <h4>Build</h4>
+              <div class="build">
+                v1.0 (build 1)<br/>
+                Notarized · Developer ID<br/>
+                Built with SwiftUI
+              </div>
+            </div>
+          </footer>
+
+        </div>
+      </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- ========== VARIANT C ========== -->
+  <article class="variant" data-variant="C">
+    <div class="badge-row">
+      <span class="pill label">Variant C</span>
+      <span class="pill">Board-as-Hero</span>
+      <span class="pill">Playable</span>
+      <span class="pill">DMG · ZIP · iOS</span>
+    </div>
+    <div class="frame-shell">
+      <div class="frame-chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">2048.kyzdes.dev</span>
+      </div>
+      <div class="scaled-wrap">
+      <div class="scaled">
+        <div class="landing">
+
+          <header class="l-topbar" style="background: rgba(187,173,160,0.0); border-bottom: 1px solid rgba(249,244,228,0.18); position: relative; z-index: 5;">
+            <a class="l-wordmark" href="#" style="color:#F9F4E4;">
+              <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+              <span>2048</span>
+            </a>
+            <nav class="l-nav" style="color:#F9F4E4;">
+              <a href="#features" style="color: rgba(249,244,228,0.85);">Features</a>
+              <a href="#download" style="color: rgba(249,244,228,0.85);">Download</a>
+              <a href="#github" style="color: rgba(249,244,228,0.85);">GitHub</a>
+              <a class="nav-cta" href="#download" style="background: var(--g-gold); color: #2D1F00;">Download · DMG</a>
+            </nav>
+          </header>
+
+          <section class="l-hero full-board">
+            <div class="fb-bg"></div>
+            <div class="fb-content">
+              <div class="hero-text" style="max-width: 540px;">
+                <h1 class="l-headline">
+                  Play
+                  <span class="lockup">
+                    <span class="lockup-tile">2048</span>
+                  </span>
+                  right here.<br/>
+                  Then take it to Mac.
+                </h1>
+                <p class="l-subhead">The board on the right is the real game — try a few swipes. When you're ready, the same engine ships as a notarized macOS app.</p>
+                <div class="l-cta-row">
+                  <a class="l-cta" href="#download">
+                    <span>Download for Mac</span>
+                    <span class="meta">DMG · 2.4 MB · v1.0</span>
+                  </a>
+                  <a class="l-cta-secondary" href="#download">or get the ZIP</a>
+                </div>
+                <span class="l-trust">Notarized by Apple · Developer ID Viacheslav Kuznetsov</span>
+              </div>
+              <div class="hero-board">
+                <div class="board-card" style="background: rgba(0,0,0,0.18); box-shadow: 0 24px 50px -20px rgba(0,0,0,0.50);">
+                  <div class="board-grid" data-board="c"></div>
+                </div>
+                <div style="text-align:center;">
+                  <div class="board-caption keys">
+                    <span class="key">↑</span><span class="key">←</span><span class="key">↓</span><span class="key">→</span>
+                    <span style="color: rgba(249,244,228,0.7); font-size: 12px; letter-spacing: 0.005em; text-transform: none; margin-left: 6px;">or swipe to play</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="l-features" id="features">
+            <div class="l-features-row">
+              <span class="chip gold">Native macOS</span>
+              <span class="chip">60 fps</span>
+              <span class="chip">Free</span>
+              <span class="chip">Open source</span>
+              <span class="chip">No ads</span>
+              <span class="chip">Light + Dark</span>
+              <span class="chip">Keyboard + Trackpad</span>
+            </div>
+          </section>
+
+          <section class="l-howto">
+            <h2>How to play</h2>
+            <div class="howto-grid">
+              <div class="howto-card">
+                <span class="howto-step">1</span>
+                <h3>Swipe</h3>
+                <p>Arrow keys or trackpad swipes nudge every tile in one direction at once.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-2);color:#776E65;">2</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-2);color:#776E65;">2</div>
+                </div>
+              </div>
+              <div class="howto-card">
+                <span class="howto-step">2</span>
+                <h3>Merge</h3>
+                <p>Two equal tiles collide and become one tile with twice the value.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-4);color:#776E65;">4</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-8);color:#F9F6F0;">8</div>
+                </div>
+              </div>
+              <div class="howto-card">
+                <span class="howto-step">3</span>
+                <h3>Reach 2048</h3>
+                <p>Keep merging. The gold tile is your reward.</p>
+                <div class="howto-mini">
+                  <div class="mini-tile" style="background:var(--t-1024);color:#F9F6F0;font-size:13px;">1024</div>
+                  <span class="arrow">→</span>
+                  <div class="mini-tile" style="background:var(--t-2048);color:#F9F6F0;font-size:13px;box-shadow:0 0 0 2px rgba(237,194,46,0.40);">2048</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="l-download" id="download">
+            <h2>Download</h2>
+            <div class="download-grid three">
+              <div class="dl-card primary">
+                <span class="badge">Recommended</span>
+                <div class="ext">.dmg · signed</div>
+                <h3>Mac · DMG</h3>
+                <p class="descr">Drag-and-drop installer for macOS 14.0+.</p>
+                <div class="dl-meta">
+                  <span>2.4 MB</span>
+                  <span>v1.0</span>
+                </div>
+                <a class="dl-btn" href="#">Download · DMG</a>
+                <div class="sha">SHA-256 · 9f4a…c0e2</div>
+              </div>
+              <div class="dl-card">
+                <span class="badge neutral">Sparkle-ready</span>
+                <div class="ext">.zip · code-signed</div>
+                <h3>Mac · ZIP</h3>
+                <p class="descr">For auto-update tooling and sandbox runners.</p>
+                <div class="dl-meta">
+                  <span>2.3 MB</span>
+                  <span>v1.0</span>
+                </div>
+                <a class="dl-btn secondary" href="#">Download · ZIP</a>
+                <div class="sha">SHA-256 · 71b3…ad4f</div>
+              </div>
+              <div class="dl-card muted">
+                <span class="badge neutral">Soon</span>
+                <div class="ext">iOS · App Store</div>
+                <h3>iOS · coming</h3>
+                <p class="descr">The same engine is being prepared for iPhone and iPad. No date yet.</p>
+                <div class="dl-meta">
+                  <span>—</span>
+                  <span>TBD</span>
+                </div>
+                <a class="dl-btn disabled" href="#">Notify me</a>
+              </div>
+            </div>
+          </section>
+
+          <footer class="l-footer">
+            <div class="col">
+              <div class="footer-mark">
+                <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+                <span>2048</span>
+              </div>
+              <p class="tagline">It's 2048. For Mac. Free.<br/>One window, no telemetry, no tabs.</p>
+            </div>
+            <div class="col">
+              <h4>Links</h4>
+              <ul>
+                <li><a href="#">GitHub repo</a></li>
+                <li><a href="#">License · MIT</a></li>
+                <li><a href="#">Privacy · we collect nothing</a></li>
+              </ul>
+            </div>
+            <div class="col">
+              <h4>Build</h4>
+              <div class="build">
+                v1.0 (build 1)<br/>
+                Notarized · Developer ID<br/>
+                Built with SwiftUI
+              </div>
+            </div>
+          </footer>
+
+        </div>
+      </div>
+      </div>
+    </div>
+  </article>
+
+</section>
+
+<div class="section-label">Mobile · 375–767 px · §10 responsive — stacked hero, board below CTA, top-bar collapsed to wordmark + Download chip</div>
+
+<!-- =========================================================
+     MOBILE PREVIEWS
+     ========================================================= -->
+<section class="mobile-row">
+
+  <!-- mobile A -->
+  <div class="mobile-frame">
+    <span class="label">Variant A · mobile</span>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="phone-notch"></div>
+        <div class="phone-status">
+          <span>9:41</span>
+          <span class="right"><span class="battery"></span></span>
+        </div>
+        <div class="m-landing">
+          <header class="m-topbar">
+            <a class="l-wordmark" href="#">
+              <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+              <span>2048</span>
+            </a>
+            <a class="m-cta-chip" href="#">Download</a>
+          </header>
+
+          <h1>
+            Join the tiles. Get to
+            <span class="m-lockup">
+              <span class="tile-gold">2048</span>
+            </span>
+          </h1>
+          <p class="m-sub">Mac-native, notarized, ad-free. Free &amp; open source.</p>
+          <a class="m-cta" href="#">Download for Mac · DMG</a>
+          <div class="m-trust">Notarized by Apple · Developer ID</div>
+
+          <div class="m-board-card">
+            <div class="m-board-grid" data-board="ma"></div>
+          </div>
+          <div style="text-align:center;font-size:11px;color:var(--g-text-soft);margin-top:8px;letter-spacing:0.06em;text-transform:uppercase;">Auto-playing · 20s loop</div>
+
+          <div class="m-features">
+            <span class="chip gold">Native macOS</span>
+            <span class="chip">60 fps</span>
+            <span class="chip">Free</span>
+            <span class="chip">Open source</span>
+            <span class="chip">No ads</span>
+            <span class="chip">Light + Dark</span>
+          </div>
+
+          <div class="m-howto">
+            <h2>How to play</h2>
+            <div class="m-howto-card">
+              <span class="m-step">1</span>
+              <div>
+                <h3>Swipe</h3>
+                <p>Arrow keys or trackpad swipes move every tile at once.</p>
+              </div>
+            </div>
+            <div class="m-howto-card">
+              <span class="m-step">2</span>
+              <div>
+                <h3>Merge</h3>
+                <p>Two equal tiles collide and become one tile with twice the value.</p>
+              </div>
+            </div>
+            <div class="m-howto-card">
+              <span class="m-step">3</span>
+              <div>
+                <h3>Reach 2048</h3>
+                <p>Keep merging until the gold tile lands.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="m-download">
+            <h2>Download</h2>
+            <div class="m-dl-card primary">
+              <div class="ext">.dmg · notarized</div>
+              <h3>Game2048Mac.dmg</h3>
+              <p>2.4 MB · macOS 14.0+ · v1.0</p>
+              <a class="dl-btn" href="#">Download · DMG</a>
+            </div>
+            <div class="m-dl-card">
+              <div class="ext">.zip · Sparkle-ready</div>
+              <h3>Game2048Mac.zip</h3>
+              <p>2.3 MB · macOS 14.0+ · v1.0</p>
+              <a class="dl-btn" href="#" style="background:rgba(119,110,101,0.14);color:var(--g-text);">Download · ZIP</a>
+            </div>
+          </div>
+
+          <div class="m-footer">
+            v1.0 (build 1) · Notarized · Built with SwiftUI<br/>
+            GitHub · License MIT · We collect nothing.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- mobile B -->
+  <div class="mobile-frame">
+    <span class="label">Variant B · mobile</span>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="phone-notch"></div>
+        <div class="phone-status">
+          <span>9:41</span>
+          <span class="right"><span class="battery"></span></span>
+        </div>
+        <div class="m-landing">
+          <header class="m-topbar">
+            <a class="l-wordmark" href="#">
+              <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+              <span>2048</span>
+            </a>
+            <a class="m-cta-chip" href="#">Download</a>
+          </header>
+
+          <div style="text-align:center;">
+            <h1 style="text-align:center;">
+              Join the tiles. Get to
+              <span class="m-lockup">
+                <span class="tile-gold">2048</span>
+              </span>
+            </h1>
+            <p class="m-sub" style="text-align:center;">Mac-native, notarized, ad-free. Free &amp; open source.</p>
+          </div>
+          <a class="m-cta" href="#">Download for Mac · DMG</a>
+          <div class="m-trust">Notarized by Apple · Developer ID</div>
+
+          <div class="m-board-card">
+            <div class="m-board-grid" data-board="mb"></div>
+          </div>
+          <div style="text-align:center;margin-top:10px;">
+            <span class="board-caption tap" style="font-size:11px;">Tap to play</span>
+          </div>
+
+          <div class="m-features" style="justify-content:center;">
+            <span class="chip gold">Native macOS</span>
+            <span class="chip">60 fps</span>
+            <span class="chip">Free</span>
+            <span class="chip">Open source</span>
+            <span class="chip">No ads</span>
+            <span class="chip">Light + Dark</span>
+          </div>
+
+          <div class="m-howto">
+            <h2>How to play</h2>
+            <div class="m-howto-card">
+              <span class="m-step">1</span>
+              <div><h3>Swipe</h3><p>Arrow keys or trackpad swipes move every tile at once.</p></div>
+            </div>
+            <div class="m-howto-card">
+              <span class="m-step">2</span>
+              <div><h3>Merge</h3><p>Two equal tiles collide and become one with twice the value.</p></div>
+            </div>
+            <div class="m-howto-card">
+              <span class="m-step">3</span>
+              <div><h3>Reach 2048</h3><p>Keep merging until the gold tile lands.</p></div>
+            </div>
+          </div>
+
+          <div class="m-download">
+            <h2>Download</h2>
+            <div class="m-dl-card primary">
+              <div class="ext">.dmg · notarized</div>
+              <h3>Game2048Mac.dmg</h3>
+              <p>2.4 MB · macOS 14.0+ · v1.0</p>
+              <a class="dl-btn" href="#">Download · DMG</a>
+            </div>
+            <div style="text-align:center;font-size:12px;color:var(--g-text-soft);margin-top:4px;">
+              <a href="#" style="color:var(--g-text);border-bottom:1px solid rgba(119,110,101,0.30);text-decoration:none;">More options · ZIP</a>
+            </div>
+          </div>
+
+          <div class="m-footer">
+            v1.0 (build 1) · Notarized · Built with SwiftUI<br/>
+            GitHub · License MIT · We collect nothing.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- mobile C — wrong-platform mode (§10.4) -->
+  <div class="mobile-frame">
+    <span class="label">Variant C · mobile · iOS-visitor mode (§10.4)</span>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="phone-notch"></div>
+        <div class="phone-status">
+          <span>9:41</span>
+          <span class="right"><span class="battery"></span></span>
+        </div>
+        <div class="m-landing">
+          <header class="m-topbar">
+            <a class="l-wordmark" href="#">
+              <img src="Game2048/Assets.xcassets/AppIcon.appiconset/AppIcon-mac-256.png" alt="">
+              <span>2048</span>
+            </a>
+            <a class="m-cta-chip" href="#" style="background:rgba(119,110,101,0.10);color:var(--g-text);">Star ★</a>
+          </header>
+
+          <h1>
+            Play
+            <span class="m-lockup">
+              <span class="tile-gold">2048</span>
+            </span>
+            right here.
+          </h1>
+          <p class="m-sub">Try a few swipes on the board below. The Mac app ships first; iOS is on the way.</p>
+
+          <div class="m-board-card">
+            <div class="m-board-grid" data-board="mc"></div>
+          </div>
+          <div style="text-align:center;margin-top:10px;">
+            <span class="board-caption tap" style="font-size:11px;">Tap and swipe</span>
+          </div>
+
+          <div class="m-features">
+            <span class="chip gold">Native macOS</span>
+            <span class="chip">60 fps</span>
+            <span class="chip">Free</span>
+            <span class="chip">Open source</span>
+            <span class="chip">No ads</span>
+          </div>
+
+          <div class="m-download">
+            <h2>iOS coming soon</h2>
+            <div class="m-dl-card" style="background:rgba(205,193,180,0.20);border:1px dashed rgba(119,110,101,0.30);">
+              <div class="ext">iOS · TestFlight TBD</div>
+              <h3>Get notified</h3>
+              <p>2048 for Mac is desktop-only for now. Drop an address — we'll mail once when iOS lands.</p>
+              <a class="dl-btn" href="mailto:kyzdes5@gmail.com?subject=2048%20iOS%20notify%20me">Notify me · email</a>
+            </div>
+            <div class="m-dl-card">
+              <div class="ext">GitHub</div>
+              <h3>Star the repo</h3>
+              <p>Watch the release feed — same channel where TestFlight invites will appear.</p>
+              <a class="dl-btn" href="#" style="background:rgba(119,110,101,0.14);color:var(--g-text);">★ Star on GitHub</a>
+            </div>
+          </div>
+
+          <div class="m-footer">
+            v1.0 (Mac) · Notarized · Built with SwiftUI<br/>
+            GitHub · License MIT · We collect nothing.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- =========================================================
+     NOTES
+     ========================================================= -->
+<section class="canvas-notes">
+  <h3>Designer notes</h3>
+  <div class="note-cols">
+    <div>
+      <h4>What's locked in (per §7)</h4>
+      <ul>
+        <li>Palette: <code>#FAF8EF</code> bg, <code>#776E65</code> ink, <code>#BBADA0</code> board, <code>#CDC1B4</code> cell, <code>#8F7A66</code> button, <code>#EDC22E</code> gold — verbatim from <code>GamePalette.swift</code></li>
+        <li>Tile colours <code>2 → 2048</code> reused exactly from <code>TileView.swift</code></li>
+        <li>Icon used as wordmark glyph and favicon — <code>AppIcon-mac-256.png</code></li>
+        <li>Font: <code>-apple-system / SF Pro Rounded / Avenir</code> system stack — no webfont</li>
+        <li>Density: restrained · narrative: hero · distance: 1m laptop · temperature: warm</li>
+      </ul>
+    </div>
+    <div>
+      <h4>What's varying (§8.4)</h4>
+      <ul>
+        <li><b>DIM 1 · Hero composition</b> — A: split text-left + board-right · B: centered single column · C: full-bleed board-as-hero</li>
+        <li><b>DIM 2 · Live board</b> — A: auto-loop caption only · B: tap-to-play affordance · C: keyboard hint shown, playable from first paint</li>
+        <li><b>DIM 3 · Download cards</b> — A: DMG primary + ZIP secondary · B: DMG only (ZIP in disclosure) · C: DMG · ZIP · iOS equal-weight row</li>
+        <li>All three keep the same feature chips, how-to-play structure, footer columns — only the §8.4 dimensions differ, so the comparison is clean</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Caveats &amp; next steps</h4>
+      <ul>
+        <li>Board auto-play is a 10-snapshot deterministic loop, not a real game engine — looks like the spec's "recorded sequence" intent. For Variant C, "fully playable" affordance is shown via the keyboard chip; real arrow-key handler is a 60-line add</li>
+        <li>The board is decorative — <code>aria-hidden</code> in production; once promoted to Play mode (Variants B/C) it gets <code>role="application"</code></li>
+        <li>Variant C mobile shows §10.4 wrong-platform mode — primary CTA swaps to iOS-notify; no DMG offered to phones</li>
+        <li>SHA-256 strings are placeholders — real values come from <code>script/release.sh</code> at build time</li>
+        <li>If you lock Variant A or B, archive the other two in §9.5 of the spec; the §8.8 lock-in template is ready to paste</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     BOARD CONTROLLER — vanilla JS, 10-snapshot deterministic loop
+     ========================================================= -->
+<script>
+(function(){
+  // 10 snapshots showing a believable 2048 progression.
+  // Each is a 16-entry array (row-major), 0 = empty cell.
+  const SNAPSHOTS = [
+    // 0 — early
+    [ 2, 0, 4, 0,
+      0, 4, 0, 0,
+      0, 0, 2, 0,
+      0, 0, 0, 2 ],
+    // 1 — mid-early
+    [ 0, 2, 4, 0,
+      4, 0, 2, 0,
+      0, 4, 0, 8,
+      2, 0, 0, 2 ],
+    // 2 — mid
+    [ 0, 0, 4, 8,
+      0, 8, 0, 4,
+      0, 4, 8, 0,
+      2, 0,16, 0 ],
+    // 3 — mid
+    [ 0, 8,16,32,
+      0, 0, 4, 8,
+      2, 4, 8, 0,
+      0, 2, 0,16 ],
+    // 4 — 64 appears
+    [ 0,16,32,64,
+      0, 8,16,32,
+      2, 4, 8,16,
+      0, 2, 4, 8 ],
+    // 5 — 128 appears
+    [ 0,128,64,32,
+      0, 16,32,64,
+      2,  4, 8,16,
+      0,  2, 0, 8 ],
+    // 6 — 256 forming
+    [ 64,128,256, 32,
+      16, 32, 64,128,
+       0,  4,  8, 16,
+       0,  2,  0,  8 ],
+    // 7 — 512 visible
+    [128,256,512, 64,
+      0, 32, 64,128,
+      2,  8, 16, 32,
+      0,  4,  0,  8 ],
+    // 8 — THE GOLD MOMENT · 2048 lands
+    [ 0,256,1024,2048,
+      4, 64, 128, 512,
+      2, 16,  32,  64,
+      0,  0,   8,  16 ],
+    // 9 — calm, restart cadence
+    [ 0, 0, 0, 2,
+      0, 0, 0, 4,
+      0, 0, 2, 4,
+      0, 0, 0, 2 ],
+  ];
+
+  const TICK_MS = 2000; // 10 snapshots × 2s = 20s loop per spec §5
+
+  function renderBoard(grid, snap, prev) {
+    // Clear & rebuild — simple, no slide diff but pop animation gives life
+    grid.innerHTML = '';
+    for (let i = 0; i < 16; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'board-cell';
+      const v = snap[i];
+      if (v > 0) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.setAttribute('data-v', String(v));
+        tile.textContent = String(v);
+        if (!prev || prev[i] !== v) {
+          tile.classList.add('appear');
+        }
+        cell.appendChild(tile);
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  function startBoard(grid) {
+    let i = 0;
+    let prev = null;
+    renderBoard(grid, SNAPSHOTS[0], null);
+    prev = SNAPSHOTS[0].slice();
+    setInterval(() => {
+      i = (i + 1) % SNAPSHOTS.length;
+      const snap = SNAPSHOTS[i];
+      renderBoard(grid, snap, prev);
+      prev = snap.slice();
+    }, TICK_MS);
+  }
+
+  // Boot all boards (3 desktop variants + 3 mobile)
+  document.querySelectorAll('[data-board]').forEach(startBoard);
+
+  // Fix scaled-wrap height: transform: scale doesn't reflow, so we set
+  // the wrapper height to the inner element's scaled height manually.
+  function fitScaledWrappers() {
+    document.querySelectorAll('.scaled-wrap').forEach(wrap => {
+      const inner = wrap.querySelector('.scaled');
+      if (!inner) return;
+      // Parse the scale factor from the inline style or computed transform
+      const cs = getComputedStyle(inner);
+      const m = cs.transform.match(/matrix\(([^,]+),/);
+      const scale = m ? parseFloat(m[1]) : 0.5390625;
+      // Use scrollHeight to account for content height regardless of layout
+      const h = inner.scrollHeight;
+      wrap.style.height = (h * scale) + 'px';
+    });
+  }
+  // Run after first paint + after fonts/images settle
+  requestAnimationFrame(fitScaledWrappers);
+  window.addEventListener('load', fitScaledWrappers);
+  // Also re-fit after each board tick since boards may shift slightly
+  setTimeout(fitScaledWrappers, 300);
+  setTimeout(fitScaledWrappers, 1500);
+
+  // Mark canvas ready (for any screenshot tooling later)
+  window.__ready = true;
+})();
+</script>
+
+</body>
+</html>
