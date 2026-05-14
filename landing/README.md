@@ -3,7 +3,7 @@
 Production single-page marketing site for the 2048 Mac app.
 Locked design: Variant A · "Split & Trusted" (see `../ux-spec-2026-05-14-game2048-landing.md` §9.5).
 
-- **Target domain:** `https://2048.moone.dev/`
+- **Target domain:** `https://games.moone.dev/`
 - **Stack:** static HTML + CSS + vanilla JS → nginx:alpine container
 - **Footprint:** ~30 KB HTML + ~60 KB icon, no webfonts, no external requests
 
@@ -68,19 +68,19 @@ The landing is shipped as a **Docker Application** in Dokploy. Two paths dependi
    - **Port:** `80`
 
 3. **Domains tab → ➕ Add domain**
-   - **Host:** `2048.moone.dev`
+   - **Host:** `games.moone.dev`
    - **Path:** `/`
    - **Port:** `80` (the container's internal port)
    - **HTTPS:** ON
    - **Certificate provider:** Let's Encrypt
-   - (Dokploy's Traefik provisions the cert on first request — make sure the DNS A record for `2048.moone.dev` points at the VPS first.)
+   - (Dokploy's Traefik provisions the cert on first request — make sure the DNS A record for `games.moone.dev` points at the VPS first.)
 
 4. **Deploy → Deploy now.** First build takes ~30 s (nginx:alpine is small).
 
 5. Verify:
    ```bash
-   curl -sI https://2048.moone.dev/ | head -5
-   curl -s  https://2048.moone.dev/ | grep -o '<title>.*</title>'
+   curl -sI https://games.moone.dev/ | head -5
+   curl -s  https://games.moone.dev/ | grep -o '<title>.*</title>'
    ```
 
 ### Path B · Manual upload (no git)
@@ -108,14 +108,14 @@ Once Path A is working, enable Dokploy's webhook:
 
 ## DNS setup (one-time)
 
-Before Dokploy can issue a cert for `2048.moone.dev`, point DNS at your VPS:
+Before Dokploy can issue a cert for `games.moone.dev`, point DNS at your VPS:
 
 ```
-2048.moone.dev.    A    <YOUR_VPS_IPv4>
-2048.moone.dev.    AAAA <YOUR_VPS_IPv6>   # optional
+games.moone.dev.    A    <YOUR_VPS_IPv4>
+games.moone.dev.    AAAA <YOUR_VPS_IPv6>   # optional
 ```
 
-Wait for propagation (`dig 2048.moone.dev +short` returns your VPS IP), then trigger Dokploy's "Issue certificate" if it didn't auto-fire.
+Wait for propagation (`dig games.moone.dev +short` returns your VPS IP), then trigger Dokploy's "Issue certificate" if it didn't auto-fire.
 
 ---
 
