@@ -142,6 +142,6 @@ and pass `--build-arg APP_VERSION=v1.1` from Dokploy's Build args section.
 ## Known TODOs
 
 - [ ] **GitHub URL** — `index.html` currently links to `https://github.com/kyzdes/ios-2048`. Replace if your final repo URL differs.
-- [ ] **OG image** — currently uses `icon-512.png` (square). A proper 1200×630 share image would render better in Twitter / Slack previews; render via a `/og-template.html` + Playwright screenshot.
+- [x] **OG image** — `assets/og-image.png` (1200×630, DPR 2). Source: `og-template.html`. Regenerate by opening that file at viewport 1200×630 with Playwright and screenshotting to `assets/og-image.png`.
 - [ ] **SHA-256 hashes** — placeholder text in `<details class="sha">` blocks. Inject real hashes via `sed` at release time, or pull from the GitHub Release body via build-time fetch.
 - [ ] **Analytics** — none. The footer copy says "We collect nothing." If that changes, add a minimal privacy line.

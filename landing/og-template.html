@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>OG template — 2048 Mac</title>
+<style>
+  :root {
+    --bg:         #FAF8EF;
+    --text:       #776E65;
+    --text-soft:  rgba(119,110,101,0.72);
+    --board:      #BBADA0;
+    --cell:       #CDC1B4;
+    --button:     #8F7A66;
+    --button-ink: #F9F6F0;
+    --gold:       #EDC22E;
+    --gold-deep:  #C99700;
+    --light-ink:  #F9F6F0;
+
+    /* Tile palette — light, verbatim from TileView.swift */
+    --t-2:    #EEE4DA;
+    --t-4:    #EDE0C8;
+    --t-8:    #F2B179;
+    --t-16:   #F59563;
+    --t-32:   #F67C5F;
+    --t-64:   #F65E3B;
+    --t-128:  #EDCF72;
+    --t-256:  #EDCC61;
+    --t-512:  #EDC850;
+    --t-1024: #EDC53F;
+    --t-2048: #EDC22E;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", Avenir, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    color: var(--text);
+  }
+
+  /* Soft radial accent in the bottom-right behind the board */
+  body::before {
+    content: '';
+    position: absolute;
+    width: 700px;
+    height: 700px;
+    right: -120px;
+    bottom: -180px;
+    background: radial-gradient(circle at center, rgba(237,194,46,0.18) 0%, rgba(237,194,46,0.04) 50%, rgba(237,194,46,0) 70%);
+    pointer-events: none;
+  }
+
+  .frame {
+    position: relative;
+    width: 1200px;
+    height: 630px;
+    padding: 70px 80px;
+    display: grid;
+    grid-template-columns: 1fr 510px;
+    gap: 56px;
+    align-items: center;
+  }
+
+  /* ---- Left column ---- */
+  .left {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+  }
+  .eyebrow {
+    font-size: 14px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    font-weight: 700;
+  }
+  .eyebrow .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    margin: 0 10px 2px;
+    vertical-align: middle;
+  }
+  h1 {
+    font-size: 76px;
+    line-height: 1.02;
+    letter-spacing: -0.024em;
+    font-weight: 800;
+    color: var(--text);
+    margin: 4px 0 4px;
+    white-space: nowrap;
+  }
+  .lockup {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: -0.17em;
+    line-height: 1;
+    margin-left: 8px;
+  }
+  .lockup-tile {
+    width: 80px;
+    height: 80px;
+    border-radius: 14px;
+    background: var(--gold);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 18px 32px -12px rgba(237,194,46,0.55);
+  }
+  .sub {
+    font-size: 24px;
+    line-height: 1.38;
+    color: var(--text-soft);
+    margin: 6px 0 0;
+    max-width: 28ch;
+    font-weight: 500;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 18px;
+  }
+  .domain-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 20px 13px 16px;
+    background: var(--button);
+    color: var(--button-ink);
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    box-shadow: 0 12px 24px -10px rgba(143,122,102,0.45);
+  }
+  .domain-chip::before {
+    content: '';
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+  .meta-strip {
+    font-size: 14px;
+    color: var(--text-soft);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .meta-strip b {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  /* ---- Board ---- */
+  .board-card {
+    width: 510px;
+    height: 510px;
+    background: var(--board);
+    border-radius: 22px;
+    padding: 16px;
+    box-shadow:
+      0 36px 60px -28px rgba(94,80,69,0.50),
+      0 14px 24px -16px rgba(94,80,69,0.30);
+    position: relative;
+  }
+  .grid {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .cell {
+    background: var(--cell);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  /* Filled tiles */
+  .cell[data-v="2"]    { background: var(--t-2); }
+  .cell[data-v="4"]    { background: var(--t-4); }
+  .cell[data-v="8"]    { background: var(--t-8);    color: var(--light-ink); }
+  .cell[data-v="16"]   { background: var(--t-16);   color: var(--light-ink); }
+  .cell[data-v="32"]   { background: var(--t-32);   color: var(--light-ink); }
+  .cell[data-v="64"]   { background: var(--t-64);   color: var(--light-ink); }
+  .cell[data-v="128"]  { background: var(--t-128);  color: var(--light-ink); }
+  .cell[data-v="256"]  { background: var(--t-256);  color: var(--light-ink); }
+  .cell[data-v="512"]  { background: var(--t-512);  color: var(--light-ink); }
+  .cell[data-v="1024"] { background: var(--t-1024); color: var(--light-ink); }
+  .cell[data-v="2048"] {
+    background: var(--t-2048);
+    color: var(--light-ink);
+    box-shadow:
+      inset 0 0 0 4px rgba(255,255,255,0.18),
+      0 0 0 3px rgba(237,194,46,0.45),
+      0 8px 20px -6px rgba(237,194,46,0.55);
+  }
+  /* Font sizes scale with cell size (~110px in 510px board) */
+  .cell[data-v="2"], .cell[data-v="4"], .cell[data-v="8"]    { font-size: 56px; }
+  .cell[data-v="16"], .cell[data-v="32"], .cell[data-v="64"] { font-size: 48px; }
+  .cell[data-v="128"], .cell[data-v="256"], .cell[data-v="512"] { font-size: 38px; }
+  .cell[data-v="1024"], .cell[data-v="2048"]                 { font-size: 30px; }
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <div class="left">
+    <div class="eyebrow">Native macOS<span class="dot"></span>Free<span class="dot"></span>Open source</div>
+    <h1>Join the tiles.</h1>
+    <h1>Get to<span class="lockup"><span class="lockup-tile">2048</span></span></h1>
+    <p class="sub">A native, notarized, ad-free 2048 for macOS. No tabs, no telemetry, no ads.</p>
+    <div class="row">
+      <span class="domain-chip">games.moone.dev</span>
+    </div>
+    <div class="meta-strip">Built with <b>SwiftUI</b> &middot; macOS 14+ &middot; Notarized by Apple</div>
+  </div>
+
+  <div class="board-card">
+    <div class="grid">
+      <!-- Curated late-game snapshot featuring the gold 2048 tile (top-right) -->
+      <div class="cell"></div>
+      <div class="cell" data-v="256">256</div>
+      <div class="cell" data-v="1024">1024</div>
+      <div class="cell" data-v="2048">2048</div>
+
+      <div class="cell" data-v="4">4</div>
+      <div class="cell" data-v="64">64</div>
+      <div class="cell" data-v="128">128</div>
+      <div class="cell" data-v="512">512</div>
+
+      <div class="cell" data-v="2">2</div>
+      <div class="cell" data-v="16">16</div>
+      <div class="cell" data-v="32">32</div>
+      <div class="cell" data-v="64">64</div>
+
+      <div class="cell"></div>
+      <div class="cell"></div>
+      <div class="cell" data-v="8">8</div>
+      <div class="cell" data-v="16">16</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
